@@ -116,7 +116,7 @@ class CodeEditor @JvmOverloads constructor(
     private val cssKeywords = Pattern.compile("\\b(color|background|margin|padding|border|display|position|top|left|right|bottom|width|height|font|text|flex|grid|align|justify|opacity|visibility|z-index|transform|transition|animation)\\b")
 
     private val javaKeywords = Pattern.compile("\\b(abstract|assert|boolean|break|byte|case|catch|char|class|const|continue|default|do|double|else|enum|extends|final|finally|float|for|goto|if|implements|import|instanceof|int|interface|long|native|new|package|private|protected|public|return|short|static|strictfp|super|switch|synchronized|this|throw|throws|transient|try|void|volatile|while|var|record|yield)\\b")
-    private val csharpKeywords = Pattern.compile("\\b(abstract|as|base|bool|break|byte|case|catch|char|checked|class|const|continue|decimal|default|delegate|do|double|else|enum|event|explicit|extern|false|finally|fixed|float|for|foreach|goto|if|implicit|in|int|interface|internal|is|lock|long|namespace|new|null|object|operator|out|override|params|private|protected|public|readonly|ref|return|sbyte|sealed|short|sizeof|stackalloc|static|string|struct|switch|this|throw|true|try|typeof|uint|ulong|unchecked|unsafe|ushort|using|virtual|void|volatile|while|add|alias|ascending|async|await|by|descending|dynamic|from|get|global|group|into|join|let|nameof|on|orderby|partial|remove|select|set|value|var|when|where|yield)\\b")
+    private val csharpKeywords = Pattern.compile("\\b(abstract|as|base|bool|break|byte|case|catch|char|checked|class|const|continue|decimal|default|delegate|do|double|else|enum|event|explicit|extern|false|finally|fixed|float|for|foreach|goto|if|implicit|in|int|interface|internal|is|lock|long|namespace|new|null|object|operator|out|override|params|private|protected|public|readonly|ref|return|sbyte|sealed|short|sizeof|stackalloc|static|string|struct|switch|this|throw|true|true|try|typeof|uint|ulong|unchecked|unsafe|ushort|using|virtual|void|volatile|while|add|alias|ascending|async|await|by|descending|dynamic|from|get|global|group|into|join|let|nameof|on|orderby|partial|remove|select|set|value|var|when|where|yield)\\b")
     private val kotlinKeywords = Pattern.compile("\\b(as|as\\?|break|class|continue|do|else|false|for|fun|if|in|!in|interface|is|!is|null|object|package|return|super|this|throw|true|try|typealias|typeof|val|var|when|while|by|constructor|delegate|dynamic|field|file|init|param|property|receiver|setparam|get|set|data|enum|open|abstract|internal|private|protected|public|sealed|vararg|inline|noinline|crossinline|external|out|in|reified|companion|expect|actual|suspend)\\b")
     private val pythonKeywords = Pattern.compile("\\b(False|None|True|and|as|assert|async|await|break|class|continue|def|del|elif|else|except|finally|for|from|global|if|import|in|is|lambda|nonlocal|not|or|pass|raise|return|try|while|with|yield)\\b")
 
@@ -194,7 +194,7 @@ class CodeEditor @JvmOverloads constructor(
         if (rawText.isNotEmpty()) {
             val lines = rawText.split("\n")
             for (line in lines) {
-                val cleanLine = line.replace("\t", "    ")
+                val cleanLine = line.replace("\t", " ")
                 val lineWidth = paint.measureText(cleanLine)
                 if (lineWidth > maxLineWidth) {
                     maxLineWidth = lineWidth
@@ -769,7 +769,12 @@ class CodeEditor @JvmOverloads constructor(
                 super.onTouchEvent(event)
             }
         }
-        return handledByGesture || super.onTouchEvent(event)
+
+        return if (!wordWrapEnabled) {
+            handledByGesture
+        } else {
+            super.onTouchEvent(event)
+        }
     }
 
     override fun bringPointIntoView(offset: Int): Boolean {
@@ -1046,8 +1051,8 @@ class CodeEditor @JvmOverloads constructor(
         val verticalOverflow = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 1f, resources.displayMetrics)
 
         val spacingExtra = lineSpacingExtra
-        val top = layout.getLineTop(startLine).toFloat() + paddingTop - scrollY - verticalOverflow
-        val bottom = layout.getLineBottom(endLine).toFloat() + paddingTop - scrollY + verticalOverflow - spacingExtra
+        val top = layout.getLineTop(startLine).toFloat() + paddingTop - verticalOverflow
+        val bottom = layout.getLineBottom(endLine).toFloat() + paddingTop + verticalOverflow - spacingExtra
 
         val textMargin = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 6f, resources.displayMetrics)
         val startX = totalLeftOffset.toFloat() - textMargin
@@ -1065,10 +1070,10 @@ class CodeEditor @JvmOverloads constructor(
         val textContent = text ?: return
         val firstVisibleLine = layout.getLineForVertical(scrollY)
         val lastVisibleLine = layout.getLineForVertical(scrollY + height)
-        var logicalLineCounter = 1
 
-        for (i in 0 until firstVisibleLine) {
-            if (layout.getLineStart(i) > 0 && textContent[layout.getLineStart(i) - 1] == '\n') logicalLineCounter++
+        var logicalLineCounter = 1
+        for (idx in 0 until layout.getLineStart(firstVisibleLine)) {
+            if (textContent[idx] == '\n') logicalLineCounter++
         }
 
         canvas.drawRect(
@@ -1086,12 +1091,13 @@ class CodeEditor @JvmOverloads constructor(
             for (visualLine in firstVisibleLine..lastVisibleLine) {
                 if (visualLine >= layout.lineCount) break
                 val startOffset = layout.getLineStart(visualLine)
+
                 val isNewLogicalLine = visualLine == 0 || textContent[startOffset - 1] == '\n'
 
                 if (isNewLogicalLine) {
                     val spacingExtra = lineSpacingExtra
-                    val top = layout.getLineTop(visualLine).toFloat() + paddingTop - scrollY
-                    val bottom = layout.getLineBottom(visualLine).toFloat() + paddingTop - scrollY - spacingExtra
+                    val top = layout.getLineTop(visualLine).toFloat() + paddingTop
+                    val bottom = layout.getLineBottom(visualLine).toFloat() + paddingTop - spacingExtra
                     val lineVerticalCenter = top + (bottom - top) / 2f
                     val centeredY = lineVerticalCenter - fontHeightOffset
 
@@ -1112,8 +1118,8 @@ class CodeEditor @JvmOverloads constructor(
         val placeholderText = "Start typing..."
         val xPosition = scrollX.toFloat() + totalLeftOffset.toFloat()
 
-        val top = layout.getLineTop(0).toFloat() + paddingTop - scrollY
-        val bottom = layout.getLineBottom(0).toFloat() + paddingTop - scrollY - lineSpacingExtra
+        val top = layout.getLineTop(0).toFloat() + paddingTop
+        val bottom = layout.getLineBottom(0).toFloat() + paddingTop - lineSpacingExtra
         val lineVerticalCenter = top + (bottom - top) / 2f
         val metrics = placeholderPaint.fontMetrics
         val fontHeightOffset = (metrics.descent + metrics.ascent) / 2f
@@ -1146,7 +1152,7 @@ class CodeEditor @JvmOverloads constructor(
         }
     }
 
-    private class TabReplacementSpan : ReplacementSpan() {
+    private inner class TabReplacementSpan : ReplacementSpan() {
         override fun getSize(paint: Paint, text: CharSequence?, start: Int, end: Int, fm: Paint.FontMetricsInt?): Int {
             if (fm != null) {
                 val metrics = paint.fontMetricsInt

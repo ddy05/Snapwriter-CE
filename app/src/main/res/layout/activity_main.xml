@@ -9,10 +9,75 @@
 
     <LinearLayout
         android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:background="#1E1E1E"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp">
+
+        <TextView
+            android:id="@+id/tvCurrentFile"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="wow.html"
+            android:textColor="#00E676"
+            android:textStyle="bold"
+            android:ellipsize="start"
+            android:singleLine="true"
+            android:textSize="14sp"
+            android:paddingEnd="8dp"/>
+
+        <Button
+            android:id="@+id/btnNewFile"
+            style="?android:attr/buttonStyleSmall"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="New"
+            android:textColor="#FFFFFF"
+            android:background="?android:attr/selectableItemBackground"/>
+
+        <Button
+            android:id="@+id/btnOpenFile"
+            style="?android:attr/buttonStyleSmall"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Open"
+            android:textColor="#FFFFFF"
+            android:background="?android:attr/selectableItemBackground"/>
+
+        <Button
+            android:id="@+id/btnSaveFile"
+            style="?android:attr/buttonStyleSmall"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Save"
+            android:textColor="#FFFFFF"
+            android:background="?android:attr/selectableItemBackground"/>
+
+        <Button
+            android:id="@+id/btnSaveAsFile"
+            style="?android:attr/buttonStyleSmall"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Save As"
+            android:textColor="#FFFFFF"
+            android:background="?android:attr/selectableItemBackground"/>
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#2D2D2D"/>
+
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="end"
-        android:padding="4dp">
+        android:padding="4dp"
+        android:background="#0A0A0A">
 
         <Button
             android:id="@+id/btnReadOnly"
@@ -53,53 +118,3 @@
         android:layout_height="48dp" />
 
 </LinearLayout>
-<!--<?xml version="1.0" encoding="utf-8"?>-->
-<!--<LinearLayout-->
-<!--    xmlns:android="http://schemas.android.com/apk/res/android"-->
-<!--    android:layout_width="match_parent"-->
-<!--    android:layout_height="match_parent"-->
-<!--    android:orientation="vertical">-->
-
-<!--    <LinearLayout-->
-<!--        android:layout_width="match_parent"-->
-<!--        android:layout_height="wrap_content"-->
-<!--        android:orientation="horizontal"-->
-<!--        android:gravity="end">-->
-
-<!--        <Button-->
-<!--            android:id="@+id/btnWrap"-->
-<!--            android:layout_width="wrap_content"-->
-<!--            android:layout_height="wrap_content"-->
-<!--            android:text="@string/toggle_wrap"/>-->
-
-<!--        <Button-->
-<!--            android:id="@+id/btnLines"-->
-<!--            android:layout_width="wrap_content"-->
-<!--            android:layout_height="wrap_content"-->
-<!--            android:text="@string/toggle_lines"/>-->
-
-<!--        <Button-->
-<!--            android:id="@+id/btnReadOnly"-->
-<!--            android:layout_width="wrap_content"-->
-<!--            android:layout_height="wrap_content"-->
-<!--            android:text="@string/view_mode" />-->
-<!--    </LinearLayout>-->
-
-<!--    <ddy.snapwriter.ui.editor.CodeEditor-->
-<!--        android:id="@+id/codeEditor"-->
-<!--        android:layout_width="match_parent"-->
-<!--        android:layout_height="0dp"-->
-<!--        android:layout_weight="1"-->
-<!--        android:fontFamily="monospace"-->
-<!--        android:textSize="14sp"-->
-<!--        android:gravity="top|start"-->
-<!--        android:scrollbars="vertical|horizontal"-->
-<!--        android:overScrollMode="always"/>-->
-
-<!--    <include-->
-<!--        android:id="@+id/editorToolbar"-->
-<!--        layout="@layout/view_editor_toolbar"-->
-<!--        android:layout_width="match_parent"-->
-<!--        android:layout_height="48dp" />-->
-
-<!--</LinearLayout>-->

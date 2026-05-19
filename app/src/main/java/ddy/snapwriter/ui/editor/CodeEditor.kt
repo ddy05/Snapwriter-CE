@@ -45,6 +45,7 @@ class CodeEditor @JvmOverloads constructor(
     private val clrComment = "#6272A4".toColorInt()
     private val clrVariable = "#BD93F9".toColorInt()
     private val clrLiteral = "#FFB86C".toColorInt()
+    private val clrIdentifier = "#8BE9FD".toColorInt()
 
     private val pairBackgroundPaint = Paint().apply {
         color = "#3300E6FF".toColorInt()
@@ -112,13 +113,15 @@ class CodeEditor @JvmOverloads constructor(
     private var isSelfModifyingText = false
 
     private val jsKeywords = Pattern.compile("\\b(break|case|catch|class|const|continue|debugger|default|delete|do|else|export|extends|finally|for|function|if|import|in|instanceof|new|return|super|switch|this|throw|try|typeof|var|void|while|with|yield|let|await)\\b")
-    private val phpKeywords = Pattern.compile("\\b(abstract|and|array|as|break|case|catch|class|clone|const|continue|declare|default|die|do|echo|else|elseif|empty|enddeclare|endfor|endforeach|endif|endswitch|endwhile|eval|exit|extends|final|finally|for|foreach|function|global|if|implements|include|include_once|instanceof|insteadof|interface|isset|list|namespace|new|or|print|private|protected|public|require|require_once|return|static|switch|throw|trait|try|unset|use|var|while|xor|yield|fn|match)\\b")
+    private val phpKeywords = Pattern.compile("\\b(abstract|and|array|as|break|case|catch|class|clone|const|continue|declare|default|die|do|echo|else|elseif|empty|enddeclare|endfor|endforeach|endif|endswitch|endwhile|eval|exit|extends|final|finally|for|foreach|function|global|if|implements|include|include_once|instanceof|insteadof|interface|isset|list|namespace|new|or|print|private|protected|public|require|require_once|return|session_destroy|session_start|session_unset|static|switch|throw|trait|try|unset|use|var|while|xor|yield|fn|match)\\b")
     private val cssKeywords = Pattern.compile("\\b(color|background|margin|padding|border|display|position|top|left|right|bottom|width|height|font|text|flex|grid|align|justify|opacity|visibility|z-index|transform|transition|animation)\\b")
 
     private val javaKeywords = Pattern.compile("\\b(abstract|assert|boolean|break|byte|case|catch|char|class|const|continue|default|do|double|else|enum|extends|final|finally|float|for|goto|if|implements|import|instanceof|int|interface|long|native|new|package|private|protected|public|return|short|static|strictfp|super|switch|synchronized|this|throw|throws|transient|try|void|volatile|while|var|record|yield)\\b")
     private val csharpKeywords = Pattern.compile("\\b(abstract|as|base|bool|break|byte|case|catch|char|checked|class|const|continue|decimal|default|delegate|do|double|else|enum|event|explicit|extern|false|finally|fixed|float|for|foreach|goto|if|implicit|in|int|interface|internal|is|lock|long|namespace|new|null|object|operator|out|override|params|private|protected|public|readonly|ref|return|sbyte|sealed|short|sizeof|stackalloc|static|string|struct|switch|this|throw|true|true|try|typeof|uint|ulong|unchecked|unsafe|ushort|using|virtual|void|volatile|while|add|alias|ascending|async|await|by|descending|dynamic|from|get|global|group|into|join|let|nameof|on|orderby|partial|remove|select|set|value|var|when|where|yield)\\b")
     private val kotlinKeywords = Pattern.compile("\\b(as|as\\?|break|class|continue|do|else|false|for|fun|if|in|!in|interface|is|!is|null|object|package|return|super|this|throw|true|try|typealias|typeof|val|var|when|while|by|constructor|delegate|dynamic|field|file|init|param|property|receiver|setparam|get|set|data|enum|open|abstract|internal|private|protected|public|sealed|vararg|inline|noinline|crossinline|external|out|in|reified|companion|expect|actual|suspend)\\b")
     private val pythonKeywords = Pattern.compile("\\b(False|None|True|and|as|assert|async|await|break|class|continue|def|del|elif|else|except|finally|for|from|global|if|import|in|is|lambda|nonlocal|not|or|pass|raise|return|try|while|with|yield)\\b")
+
+    private val sqlKeywords = Pattern.compile("(?i)\\b(SELECT|FROM|WHERE|INSERT|INTO|VALUES|UPDATE|SET|DELETE|JOIN|LEFT|RIGHT|INNER|OUTER|ON|GROUP|BY|ORDER|HAVING|LIMIT|UNION|ALL|CREATE|TABLE|DROP|ALTER|INDEX|PRIMARY|KEY|FOREIGN|REFERENCES|NOT|NULL|DEFAULT|UNIQUE|CONSTRAINT|DATABASE|USE|AS|AND|OR|IN|LIKE|BETWEEN|IS|EXISTS|ANY|ALL|CASE|WHEN|THEN|ELSE|END|JOIN)\\b")
 
     private val genericLiterals = Pattern.compile("\\b(true|false|null|NaN|undefined|TRUE|FALSE|NULL)\\b|\\b\\d+(\\.\\d+)?\\b")
 
@@ -201,7 +204,7 @@ class CodeEditor @JvmOverloads constructor(
                 }
             }
         }
-        return maxLineWidth.toInt() + totalLeftOffset + paddingRight + 60
+        return maxLineWidth.toInt() + totalLeftOffset + paddingRight + 300
     }
 
     private val gestureDetector =
@@ -299,8 +302,15 @@ class CodeEditor @JvmOverloads constructor(
                     var openBracketIdx = -1
 
                     for (k in lookbackIdx downTo 0) {
-                        if (s[k] == '<') { openBracketIdx = k; break }
-                        if (s[k] == '>') break
+                        val charAtPos = s[k]
+                        if (charAtPos == '<') {
+                            openBracketIdx = k
+                            break
+                        }
+
+                        if (charAtPos == '>' || charAtPos == '=' || charAtPos == ';') {
+                            break
+                        }
                     }
 
                     if (openBracketIdx != -1) {
@@ -512,6 +522,7 @@ class CodeEditor @JvmOverloads constructor(
             "java", "cs", "kt" -> 4
             "py" -> 5
             "json" -> 6
+            "sql" -> 7
             else -> -1
         }
 
@@ -562,6 +573,8 @@ class CodeEditor @JvmOverloads constructor(
 
             val nextLineLimit = textString.indexOf('\n', i).let { if (it == -1) length else it }
 
+            val textSliceLimit = nextLineLimit
+
             when (contextMode) {
                 0 -> {
                     if (textString.startsWith("<!--", i)) {
@@ -585,17 +598,17 @@ class CodeEditor @JvmOverloads constructor(
                         editable.setSpan(ForegroundColorSpan(clrComment), i, endIdx, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
                         i = endIdx
                     } else {
-                        val matchedKeyword = findNextRegexMatch(cssKeywords, textString, i, nextLineLimit)
+                        val matchedKeyword = findNextRegexMatch(cssKeywords, textString, i, textSliceLimit)
                         if (matchedKeyword != null) {
                             editable.setSpan(ForegroundColorSpan(clrKeyword), matchedKeyword.first, matchedKeyword.second, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
                             i = matchedKeyword.second
                         } else {
-                            val literalMatch = findNextRegexMatch(genericLiterals, textString, i, nextLineLimit)
+                            val literalMatch = findNextRegexMatch(genericLiterals, textString, i, textSliceLimit)
                             if (literalMatch != null) {
                                 editable.setSpan(ForegroundColorSpan(clrLiteral), literalMatch.first, literalMatch.second, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
                                 i = literalMatch.second
                             } else {
-                                i = colorizeGenericStringTokens(editable, textString, i, nextLineLimit)
+                                i = colorizeGenericStringTokens(editable, textString, i, textSliceLimit)
                             }
                         }
                     }
@@ -604,14 +617,90 @@ class CodeEditor @JvmOverloads constructor(
                     val isPhp = contextMode == 3
 
                     if (textString.startsWith("//", i)) {
-                        editable.setSpan(ForegroundColorSpan(clrComment), i, nextLineLimit, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                        i = nextLineLimit
+                        editable.setSpan(ForegroundColorSpan(clrComment), i, textSliceLimit, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                        i = textSliceLimit
                     } else if (textString.startsWith("/*", i)) {
                         val endComment = textString.indexOf("*/", i)
                         val endIdx = if (endComment != -1) endComment + 2 else length
                         editable.setSpan(ForegroundColorSpan(clrComment), i, endIdx, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
                         i = endIdx
-                    } else if (contextMode == 3 && textString[i] == '$') {
+                    }
+                    else if (isPhp && textString.startsWith("<<<", i)) {
+                        val tokenStart = i + 3
+                        var tokenEnd = tokenStart
+                        while (tokenEnd < textSliceLimit && (textString[tokenEnd].isLetterOrDigit() || textString[tokenEnd] == '_' || textString[tokenEnd] == '\'' || textString[tokenEnd] == '"')) {
+                            tokenEnd++
+                        }
+
+                        val rawToken = textString.substring(tokenStart, tokenEnd)
+                        val cleanToken = rawToken.replace("'", "").replace("\"", "").trim()
+
+                        if (cleanToken.isNotEmpty()) {
+                            editable.setSpan(ForegroundColorSpan(clrIdentifier), i, tokenEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+
+                            i = textSliceLimit
+                            var heredocIdx = i
+                            var foundEnd = false
+
+                            while (heredocIdx < length) {
+                                val currentLineStart = heredocIdx
+                                val currentLineEnd = textString.indexOf('\n', currentLineStart).let { if (it == -1) length else it }
+                                val lineText = textString.substring(currentLineStart, currentLineEnd).trim()
+
+                                if (lineText.startsWith(cleanToken)) {
+                                    val tokenTerminationIdx = currentLineStart + textString.substring(currentLineStart, currentLineEnd).indexOf(cleanToken)
+
+                                    val tokenEndIdx = tokenTerminationIdx + cleanToken.length
+                                    val hasTrailingSemanticChars = tokenEndIdx < textString.length && (textString[tokenEndIdx].isLetterOrDigit() || textString[tokenEndIdx] == '_')
+
+                                    if (!hasTrailingSemanticChars) {
+                                        editable.setSpan(ForegroundColorSpan(clrIdentifier), tokenTerminationIdx, tokenEndIdx, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                                        i = currentLineEnd
+                                        contextMode = 3
+                                        foundEnd = true
+                                        break
+                                    }
+                                }
+
+                                if (cleanToken.equals("SQL", ignoreCase = true)) {
+                                    val nextWordLimit = textString.indexOf('\n', heredocIdx).let { if (it == -1) length else it }
+                                    val sqlMatch = findNextRegexMatch(sqlKeywords, textString, heredocIdx, nextWordLimit)
+                                    if (sqlMatch != null) {
+                                        editable.setSpan(ForegroundColorSpan(clrKeyword), sqlMatch.first, sqlMatch.second, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                                        heredocIdx = sqlMatch.second
+                                        continue
+                                    } else {
+                                        editable.setSpan(ForegroundColorSpan(clrString), heredocIdx, heredocIdx + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                                    }
+                                } else if (cleanToken.equals("HTML", ignoreCase = true)) {
+                                    if (textString.startsWith("<!--", heredocIdx)) {
+                                        val endComment = textString.indexOf("-->", heredocIdx)
+                                        val endIdx = if (endComment != -1) endComment + 3 else currentLineEnd
+                                        editable.setSpan(ForegroundColorSpan(clrComment), heredocIdx, endIdx, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                                        heredocIdx = endIdx
+                                        continue
+                                    } else if (textString[heredocIdx] == '<') {
+                                        val endTag = textString.indexOf('>', heredocIdx)
+                                        val endIdx = if (endTag != -1 && endTag < currentLineEnd) endTag + 1 else currentLineEnd
+                                        colorizeHtmlTagBlock(editable, heredocIdx, endIdx)
+                                        heredocIdx = endIdx
+                                        continue
+                                    }
+                                } else {
+                                    editable.setSpan(ForegroundColorSpan(clrString), currentLineStart, currentLineEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                                    heredocIdx = currentLineEnd
+                                    continue
+                                }
+
+                                heredocIdx++
+                                if (heredocIdx > currentLineEnd) heredocIdx = currentLineEnd
+                            }
+
+                            if (foundEnd) continue
+                        } else {
+                            i += 3
+                        }
+                    } else if (isPhp && textString[i] == '$') {
                         var varEnd = i + 1
                         while (varEnd < length && (textString[varEnd].isLetterOrDigit() || textString[varEnd] == '_')) { varEnd++ }
                         editable.setSpan(ForegroundColorSpan(clrVariable), i, varEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
@@ -624,25 +713,60 @@ class CodeEditor @JvmOverloads constructor(
                             "cs" -> csharpKeywords
                             else -> kotlinKeywords
                         }
-                        val keywordMatch = findNextRegexMatch(activeDict, textString, i, nextLineLimit)
+                        val keywordMatch = findNextRegexMatch(activeDict, textString, i, textSliceLimit)
                         if (keywordMatch != null) {
                             editable.setSpan(ForegroundColorSpan(clrKeyword), keywordMatch.first, keywordMatch.second, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
                             i = keywordMatch.second
                         } else {
-                            val literalMatch = findNextRegexMatch(genericLiterals, textString, i, nextLineLimit)
+                            val char = textString[i]
+                            if (isPhp && (char == '"' || char == '\'')) {
+                                var strEndIdx = i + 1
+                                while (strEndIdx < textSliceLimit) {
+                                    if (textString[strEndIdx] == char && textString[strEndIdx - 1] != '\\') {
+                                        strEndIdx++
+                                        break
+                                    }
+                                    strEndIdx++
+                                }
+
+                                val stringContent = textString.substring(i, strEndIdx)
+                                if (stringContent.trim('"').trim('\'').trim().uppercase().startsWith("SELECT ") ||
+                                    stringContent.trim('"').trim('\'').trim().uppercase().startsWith("INSERT ") ||
+                                    stringContent.trim('"').trim('\'').trim().uppercase().startsWith("UPDATE ") ||
+                                    stringContent.trim('"').trim('\'').trim().uppercase().startsWith("DELETE ")
+                                ) {
+                                    var sqlStrIdx = i
+                                    while (sqlStrIdx < strEndIdx) {
+                                        val queryMatch = findNextRegexMatch(sqlKeywords, textString, sqlStrIdx, martialLimit(sqlStrIdx, strEndIdx, textSliceLimit))
+                                        if (queryMatch != null) {
+                                            editable.setSpan(ForegroundColorSpan(clrKeyword), queryMatch.first, queryMatch.second, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                                            sqlStrIdx = queryMatch.second
+                                        } else {
+                                            if (textString[sqlStrIdx] != char) {
+                                                editable.setSpan(ForegroundColorSpan(clrString), sqlStrIdx, sqlStrIdx + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                                            }
+                                            sqlStrIdx++
+                                        }
+                                    }
+                                    i = strEndIdx
+                                    continue
+                                }
+                            }
+
+                            val literalMatch = findNextRegexMatch(genericLiterals, textString, i, textSliceLimit)
                             if (literalMatch != null) {
                                 editable.setSpan(ForegroundColorSpan(clrLiteral), literalMatch.first, literalMatch.second, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
                                 i = literalMatch.second
                             } else {
-                                i = colorizeGenericStringTokens(editable, textString, i, nextLineLimit)
+                                i = colorizeGenericStringTokens(editable, textString, i, textSliceLimit)
                             }
                         }
                     }
                 }
                 5 -> {
                     if (textString[i] == '#') {
-                        editable.setSpan(ForegroundColorSpan(clrComment), i, nextLineLimit, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                        i = nextLineLimit
+                        editable.setSpan(ForegroundColorSpan(clrComment), i, textSliceLimit, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                        i = textSliceLimit
                     } else {
                         val isTripleQuote = textString.startsWith("\"\"\"", i) || textString.startsWith("'''", i)
                         if (isTripleQuote) {
@@ -652,30 +776,30 @@ class CodeEditor @JvmOverloads constructor(
                             editable.setSpan(ForegroundColorSpan(clrComment), i, endIdx, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
                             i = endIdx
                         } else {
-                            val keywordMatch = findNextRegexMatch(pythonKeywords, textString, i, nextLineLimit)
+                            val keywordMatch = findNextRegexMatch(pythonKeywords, textString, i, textSliceLimit)
                             if (keywordMatch != null) {
                                 editable.setSpan(ForegroundColorSpan(clrKeyword), keywordMatch.first, keywordMatch.second, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
                                 i = keywordMatch.second
                             } else {
-                                val literalMatch = findNextRegexMatch(genericLiterals, textString, i, nextLineLimit)
+                                val literalMatch = findNextRegexMatch(genericLiterals, textString, i, textSliceLimit)
                                 if (literalMatch != null) {
                                     editable.setSpan(ForegroundColorSpan(clrLiteral), literalMatch.first, literalMatch.second, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
                                     i = literalMatch.second
                                 } else {
-                                    i = colorizeGenericStringTokens(editable, textString, i, nextLineLimit)
+                                    i = colorizeGenericStringTokens(editable, textString, i, textSliceLimit)
                                 }
                             }
                         }
                     }
                 }
                 6 -> {
-                    val literalMatch = findNextRegexMatch(genericLiterals, textString, i, nextLineLimit)
+                    val literalMatch = findNextRegexMatch(genericLiterals, textString, i, textSliceLimit)
                     if (literalMatch != null) {
                         editable.setSpan(ForegroundColorSpan(clrLiteral), literalMatch.first, literalMatch.second, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
                         i = literalMatch.second
                     } else if (textString[i] == '"') {
                         var stringEndIdx = i + 1
-                        while (stringEndIdx < nextLineLimit) {
+                        while (stringEndIdx < textSliceLimit) {
                             if (textString[stringEndIdx] == '"' && textString[stringEndIdx - 1] != '\\') {
                                 stringEndIdx++
                                 break
@@ -698,8 +822,37 @@ class CodeEditor @JvmOverloads constructor(
                         i++
                     }
                 }
+                7 -> {
+                    if (textString.startsWith("--", i)) {
+                        editable.setSpan(ForegroundColorSpan(clrComment), i, textSliceLimit, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                        i = textSliceLimit
+                    } else if (textString.startsWith("/*", i)) {
+                        val endComment = textString.indexOf("*/", i)
+                        val endIdx = if (endComment != -1) endComment + 2 else length
+                        editable.setSpan(ForegroundColorSpan(clrComment), i, endIdx, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                        i = endIdx
+                    } else {
+                        val keywordMatch = findNextRegexMatch(sqlKeywords, textString, i, textSliceLimit)
+                        if (keywordMatch != null) {
+                            editable.setSpan(ForegroundColorSpan(clrKeyword), keywordMatch.first, keywordMatch.second, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                            i = keywordMatch.second
+                        } else {
+                            val literalMatch = findNextRegexMatch(genericLiterals, textString, i, textSliceLimit)
+                            if (literalMatch != null) {
+                                editable.setSpan(ForegroundColorSpan(clrLiteral), literalMatch.first, literalMatch.second, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                                i = literalMatch.second
+                            } else {
+                                i = colorizeGenericStringTokens(editable, textString, i, textSliceLimit)
+                            }
+                        }
+                    }
+                }
             }
         }
+    }
+
+    private fun martialLimit(idx: Int, end: Int, fallback: Int): Int {
+        return if (end in (idx + 1)..fallback) end else fallback
     }
 
     private fun colorizeHtmlTagBlock(editable: Editable, start: Int, end: Int) {
@@ -737,7 +890,23 @@ class CodeEditor @JvmOverloads constructor(
     private fun findNextRegexMatch(pattern: Pattern, text: String, start: Int, end: Int): Pair<Int, Int>? {
         val matcher = pattern.matcher(text).region(start, end)
         if (matcher.find() && matcher.start() == start) {
-            return Pair(matcher.start(), matcher.end())
+            val matchedEnd = matcher.end()
+
+            if (start > 0) {
+                val leadingChar = text[start - 1]
+                if (leadingChar.isLetterOrDigit() || leadingChar == '_') {
+                    return null
+                }
+            }
+
+            if (matchedEnd < text.length) {
+                val trailingChar = text[matchedEnd]
+                if (trailingChar.isLetterOrDigit() || trailingChar == '_') {
+                    return null
+                }
+            }
+
+            return Pair(start, matchedEnd)
         }
         return null
     }
@@ -797,11 +966,11 @@ class CodeEditor @JvmOverloads constructor(
             val visibleLeft = scrollX + paddingLeft
             val visibleRight = scrollX + width - paddingRight
 
-            if (cursorX < visibleLeft) {
-                val targetScrollX = (cursorX - paddingLeft - 40).coerceAtLeast(0)
+            if (cursorX < visibleLeft + 40) {
+                val targetScrollX = (cursorX - paddingLeft - 80).coerceAtLeast(0)
                 scrollTo(targetScrollX, scrollY)
-            } else if (cursorX > visibleRight) {
-                val targetScrollX = cursorX - width + paddingRight + 40
+            } else if (cursorX > visibleRight - 40) {
+                val targetScrollX = cursorX - width + paddingRight + 120
                 scrollTo(targetScrollX, scrollY)
             }
         }
@@ -1068,12 +1237,17 @@ class CodeEditor @JvmOverloads constructor(
     private fun drawLineNumbers(canvas: Canvas) {
         val layout = layout ?: return
         val textContent = text ?: return
-        val firstVisibleLine = layout.getLineForVertical(scrollY)
+
+        val firstVisibleLine = layout.getLineForVertical((scrollY - paddingTop).coerceAtLeast(0))
         val lastVisibleLine = layout.getLineForVertical(scrollY + height)
 
         var logicalLineCounter = 1
-        for (idx in 0 until layout.getLineStart(firstVisibleLine)) {
-            if (textContent[idx] == '\n') logicalLineCounter++
+        val firstLineStartOffset = layout.getLineStart(firstVisibleLine)
+
+        for (idx in 0 until firstLineStartOffset) {
+            if (textContent[idx] == '\n') {
+                logicalLineCounter++
+            }
         }
 
         canvas.drawRect(
@@ -1152,7 +1326,7 @@ class CodeEditor @JvmOverloads constructor(
         }
     }
 
-    private inner class TabReplacementSpan : ReplacementSpan() {
+    private class TabReplacementSpan : ReplacementSpan() {
         override fun getSize(paint: Paint, text: CharSequence?, start: Int, end: Int, fm: Paint.FontMetricsInt?): Int {
             if (fm != null) {
                 val metrics = paint.fontMetricsInt

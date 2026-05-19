@@ -1,10 +1,11 @@
 package ddy.snapwriter.config
 
 object EditorDefaults {
+    // Inside EditorDefaults.kt
     private val CODE_EXTENSIONS = setOf(
         "cs", "java", "kt", "py",
         "html", "css", "js", "php",
-        "json"
+        "json", "sql"
     )
     private val TEXT_EXTENSIONS = setOf(
         "txt", "md"

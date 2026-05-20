@@ -54,9 +54,10 @@ class MainActivity : AppCompatActivity()
         tvCurrentFile = findViewById(R.id.tvCurrentFile)
         tvCurrentFile.text = currentFile
 
-        val wrapBtn = findViewById<Button>(R.id.btnWrap)
-        val lineBtn = findViewById<Button>(R.id.btnLines)
-        val readOnlyBtn = findViewById<Button>(R.id.btnReadOnly)
+        // Change these lines:
+        val wrapBtn = findViewById<com.google.android.material.button.MaterialButton>(R.id.btnWrap)
+        val lineBtn = findViewById<com.google.android.material.button.MaterialButton>(R.id.btnLines)
+//        val readOnlyBtn = findViewById<Button>(R.id.btnReadOnly)
 
         resolver = EditorConfigResolver(this)
         loadAndApplyFileState(currentFile)
@@ -113,27 +114,43 @@ class MainActivity : AppCompatActivity()
             popup.show()
         }
 
+        // Word Wrap Toggle
         wrapBtn.setOnClickListener {
             editor.wordWrapEnabled = !editor.wordWrapEnabled
+            // Set checked state to true (Purple) if enabled, false (Gray) if disabled
+            wrapBtn.isChecked = editor.wordWrapEnabled
             saveCurrentConfig()
         }
 
+// Line Numbers Toggle
         lineBtn.setOnClickListener {
             editor.showLineNumbers = !editor.showLineNumbers
+            lineBtn.isChecked = editor.showLineNumbers
             saveCurrentConfig()
         }
+
+        val readOnlyBtn = findViewById<com.google.android.material.button.MaterialButton>(R.id.btnReadOnly)
 
         readOnlyBtn.setOnClickListener {
             editor.isReadOnly = !editor.isReadOnly
+
             if (editor.isReadOnly) {
-                readOnlyBtn.text = "Edit Mode"
+                // VIEW MODE: Show eye icon, gray/un-checked state
+                readOnlyBtn.isChecked = false
+                readOnlyBtn.setIconResource(R.drawable.ic_mode_view)
                 findViewById<View>(R.id.editorToolbar).visibility = View.GONE
                 editor.clearFocus()
             } else {
-                readOnlyBtn.text = "View Mode"
+                // EDIT MODE: Show pencil icon, checked/purple state
+                readOnlyBtn.isChecked = true
+                readOnlyBtn.setIconResource(R.drawable.ic_mode_edit)
                 findViewById<View>(R.id.editorToolbar).visibility = View.VISIBLE
+                editor.requestFocus()
             }
         }
+
+
+
     }
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)

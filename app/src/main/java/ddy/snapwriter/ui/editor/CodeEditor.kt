@@ -26,6 +26,7 @@ import androidx.appcompat.widget.AppCompatEditText
 import ddy.snapwriter.config.EditorConfig
 import androidx.core.graphics.withTranslation
 import androidx.core.graphics.toColorInt
+import ddy.snapwriter.R
 import java.util.regex.Pattern
 
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
@@ -238,7 +239,50 @@ class CodeEditor @JvmOverloads constructor(
             override fun onSingleTapUp(e: MotionEvent): Boolean { return false }
         })
 
+    private var sansTypeface: android.graphics.Typeface? = null
+    private var monoTypeface: android.graphics.Typeface? = null
+
+//    private fun applyTypefaceForExtension(ext: String) {
+//        val isTextual = (ext == "txt" || ext == "md")
+//        this.typeface = if (isTextual) sansTypeface else monoTypeface
+//        invalidate()
+//    }
+
+    // Inside your CodeEditor.kt, update how you set the paint
+    private fun applyTypefaceForExtension(ext: String) {
+        val isTextual = (ext == "txt" || ext == "md")
+        val selectedTypeface = if (isTextual) sansTypeface else monoTypeface
+
+        this.typeface = selectedTypeface
+
+        // FORCE the paint to use weight 400
+        this.paint.typeface = android.graphics.Typeface.create(selectedTypeface, android.graphics.Typeface.NORMAL)
+        // Sometimes you need to force the paint weight for variable fonts
+        this.paint.strokeWidth = 0.5f // Tiny adjustment if it still looks too light
+
+        invalidate()
+    }
+
     init {
+        try {
+            // Use ResourcesCompat to load from your res/font folder
+            sansTypeface = androidx.core.content.res.ResourcesCompat.getFont(
+                context,
+                R.font.font_instrument_sans // Matches your res/font/font_instrument_sans.xml
+            )
+            monoTypeface = androidx.core.content.res.ResourcesCompat.getFont(
+                context,
+                R.font.font_suse_mono // Matches your res/font/font_suse_mono.xml
+            )
+        } catch (e: Exception) {
+            // Fallback
+            sansTypeface = android.graphics.Typeface.SANS_SERIF
+            monoTypeface = android.graphics.Typeface.MONOSPACE
+        }
+
+        // Set your typeface
+        applyTypefaceForExtension(currentFileExtension)
+
         setBackgroundColor(Color.BLACK)
         setTextColor(Color.WHITE)
 
@@ -1091,7 +1135,9 @@ class CodeEditor @JvmOverloads constructor(
         wordWrapEnabled = config.wordWrapEnabled
         highlightCurrentLine = config.highlightCurrentLine
         this.autoPairBraces = config.autoPairBraces
-        this.typeface = if (config.useMonospaceFont) android.graphics.Typeface.MONOSPACE else android.graphics.Typeface.SANS_SERIF
+
+        // Switch typeface using the new cached assets
+        applyTypefaceForExtension(config.fileExtension)
 
         text?.let { runSyntaxHighlighter(it) }
     }

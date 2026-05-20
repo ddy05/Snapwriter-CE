@@ -68,10 +68,50 @@ class MainActivity : AppCompatActivity()
         findViewById<Button>(R.id.btnParens).setOnClickListener { editor.insertSymbolPair("(", ")") }
         findViewById<Button>(R.id.btnCommandPalette).setOnClickListener { openCommandPalette() }
 
-        findViewById<Button>(R.id.btnNewFile).setOnClickListener { showNewFileDialog() }
-        findViewById<Button>(R.id.btnOpenFile).setOnClickListener { showOpenFileDialog() }
-        findViewById<Button>(R.id.btnSaveFile).setOnClickListener { saveActiveDocument() }
-        findViewById<Button>(R.id.btnSaveAsFile).setOnClickListener { showSaveAsDialog() }
+//        findViewById<Button>(R.id.btnNewFile).setOnClickListener { showNewFileDialog() }
+//        findViewById<Button>(R.id.btnOpenFile).setOnClickListener { showOpenFileDialog() }
+//        findViewById<Button>(R.id.btnSaveFile).setOnClickListener { saveActiveDocument() }
+//        findViewById<Button>(R.id.btnSaveAsFile).setOnClickListener { showSaveAsDialog() }
+
+        // Inside onCreate, find and enable your button
+        val menuBtn = findViewById<com.google.android.material.button.MaterialButton>(R.id.menuBtn)
+        menuBtn.isEnabled = true // Ensure this is true!
+
+        menuBtn.setOnClickListener { view ->
+            menuBtn.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#7075FF")))
+
+            val popup = android.widget.PopupMenu(this, view)
+
+            // Add menu items (ID, Order, Category, Title)
+            popup.menu.add(0, 1, 0, "New File")
+            popup.menu.add(0, 2, 1, "Open")
+            popup.menu.add(0, 3, 2, "Save")
+            popup.menu.add(0, 4, 3, "Save As")
+            popup.menu.add(0, 5, 4, "Close")
+
+            // Handle clicks
+            popup.setOnMenuItemClickListener { item ->
+                when (item.itemId) {
+                    1 -> showNewFileDialog()
+                    2 -> showOpenFileDialog()
+                    3 -> saveActiveDocument()
+                    4 -> showSaveAsDialog()
+                    5 -> {
+                        editor.setText("")
+                        Toast.makeText(this, "Document closed", Toast.LENGTH_SHORT).show()
+                    }
+                }
+                true
+            }
+
+            // 2. Set the dismiss listener to revert the color
+            popup.setOnDismissListener {
+                // Revert to the default color #505063
+                menuBtn.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#505063")))
+            }
+
+            popup.show()
+        }
 
         wrapBtn.setOnClickListener {
             editor.wordWrapEnabled = !editor.wordWrapEnabled
@@ -251,17 +291,16 @@ class MainActivity : AppCompatActivity()
     }
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
-    private fun saveCurrentConfig()
-    {
-        val currentlyMonospace = editor.typeface == android.graphics.Typeface.MONOSPACE
-
+    private fun saveCurrentConfig() {
+        // We don't need to check typeface here anymore,
+        // the EditorConfigResolver handles it based on file extension
         resolver.persist(
             currentFile,
             EditorConfig(
                 showLineNumbers = editor.showLineNumbers,
                 wordWrapEnabled = editor.wordWrapEnabled,
                 highlightCurrentLine = editor.highlightCurrentLine,
-                useMonospaceFont = currentlyMonospace,
+                useMonospaceFont = (currentFile.substringAfterLast('.', "") !in listOf("txt", "md")),
                 autoPairBraces = editor.autoPairBraces,
                 fileExtension = currentFile.substringAfterLast('.', "php")
             )

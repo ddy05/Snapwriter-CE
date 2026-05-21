@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Snapwriter</string>
+    <string name="app_name">Snapwriter CE</string>
     <string name="toggle_wrap">Toggle Wrap</string>
     <string name="toggle_lines">Toggle Lines</string>
     <string name="view_mode">View Mode</string>

@@ -65,32 +65,17 @@
         android:layout_width="match_parent"
         android:layout_height="1dp"
         android:background="#000"/>
-    <LinearLayout
+    <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/tabBar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:paddingVertical="6dp"
         android:background="#2f2f35"
-        android:gravity="center_vertical">
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/materialButton"
-            android:layout_width="100dp"
-            android:layout_height="30dp"
-            android:layout_marginLeft="8dp"
-            android:layout_weight="1"
-            android:backgroundTint="#7075ff"
-            android:textColor="@color/white"
-            android:textSize="14sp" />
-
-        <com.google.android.material.button.MaterialButton
-            android:layout_width="105dp"
-            android:layout_height="30dp"
-            android:layout_marginLeft="8dp"
-            android:backgroundTint="#505063"
-            android:textColor="@color/white"
-            android:textSize="14sp" />
-    </LinearLayout>
+        android:clipToPadding="false"
+        android:orientation="horizontal"
+        android:paddingVertical="8dp"
+        android:paddingStart="40dp"
+        android:paddingEnd="40dp"
+        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
 
     <!-- Remainder of your layout remains unchanged -->
 
@@ -122,14 +107,14 @@
                 android:checkable="true"
                 android:padding="0dp"
                 android:backgroundTint="#000"
-                app:strokeColor="#7075ff"
+                app:strokeColor="@color/white"
                 app:strokeWidth="1dp"
-                app:cornerRadius="12dp"
+                app:cornerRadius="32dp"
                 app:icon="@drawable/ic_mode_edit"
                 app:iconTint="@color/selector_icon_tint"
                 app:iconGravity="textStart"
                 app:iconPadding="0dp"
-                app:iconSize="34dp" />
+                app:iconSize="30dp" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnWrap"
@@ -140,14 +125,14 @@
                 android:checkable="true"
                 android:padding="0dp"
                 android:backgroundTint="#000"
-                app:strokeColor="#7075ff"
+                app:strokeColor="@color/white"
                 app:strokeWidth="1dp"
-                app:cornerRadius="12dp"
+                app:cornerRadius="32dp"
                 app:icon="@drawable/ic_word_wrap"
                 app:iconTint="@color/selector_icon_tint"
                 app:iconGravity="textStart"
                 app:iconPadding="0dp"
-                app:iconSize="40dp" />
+                app:iconSize="38dp" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnLines"
@@ -158,14 +143,14 @@
                 android:checkable="true"
                 android:padding="0dp"
                 android:backgroundTint="#000"
-                app:strokeColor="#7075ff"
+                app:strokeColor="@color/white"
                 app:strokeWidth="1dp"
-                app:cornerRadius="12dp"
+                app:cornerRadius="32dp"
                 app:icon="@drawable/ic_line_nums"
                 app:iconTint="@color/selector_icon_tint"
                 app:iconGravity="textStart"
                 app:iconPadding="0dp"
-                app:iconSize="40dp" />
+                app:iconSize="38dp" />
         </LinearLayout>
 
         <ddy.snapwriter.ui.editor.CodeEditor
@@ -176,7 +161,8 @@
             android:includeFontPadding="false"
             android:textSize="14sp"
             android:padding="8dp"
-            android:scrollbars="vertical|horizontal" />
+            android:scrollbars="vertical|horizontal"
+            android:background="@drawable/bg_code_editor"/>
 
     </LinearLayout>
 

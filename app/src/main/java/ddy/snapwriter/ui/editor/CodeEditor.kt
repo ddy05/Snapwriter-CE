@@ -48,6 +48,11 @@ class CodeEditor @JvmOverloads constructor(
     private val clrLiteral = "#FFB86C".toColorInt()
     private val clrIdentifier = "#8BE9FD".toColorInt()
 
+    private val gutterBorderPaint = Paint().apply {
+        color = Color.parseColor("#333333") // Adjust color to your preference
+        strokeWidth = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 1f, resources.displayMetrics)
+        style = Paint.Style.STROKE
+    }
     private val pairBackgroundPaint = Paint().apply {
         color = "#3300E6FF".toColorInt()
         style = Paint.Style.FILL
@@ -98,7 +103,7 @@ class CodeEditor @JvmOverloads constructor(
         textSize = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 12f, resources.displayMetrics)
         isSubpixelText = true
     }
-    private val currentLinePaint = Paint().apply { color = "#22FFFFFF".toColorInt() }
+    private val currentLinePaint = Paint().apply { color = "#308084ff".toColorInt() }
     private val gutterBackgroundPaint = Paint().apply {
         color = Color.BLACK
         style = Paint.Style.FILL
@@ -281,6 +286,7 @@ class CodeEditor @JvmOverloads constructor(
         }
 
         // Set your typeface
+        lineNumberPaint.typeface = monoTypeface
         applyTypefaceForExtension(currentFileExtension)
 
         setBackgroundColor(Color.BLACK)
@@ -1258,6 +1264,7 @@ class CodeEditor @JvmOverloads constructor(
         setSelection(newSelectionStart.coerceIn(0, content.length), newSelectionEnd.coerceIn(0, content.length))
     }
 
+
     private fun drawCurrentLineHighlight(canvas: Canvas, layout: android.text.Layout) {
         val range = getCurrentLogicalLineRange() ?: return
         val startLine = range.first
@@ -1282,55 +1289,68 @@ class CodeEditor @JvmOverloads constructor(
 
     private fun drawLineNumbers(canvas: Canvas) {
         val layout = layout ?: return
-        val textContent = text ?: return
 
-        val firstVisibleLine = layout.getLineForVertical((scrollY - paddingTop).coerceAtLeast(0))
-        val lastVisibleLine = layout.getLineForVertical(scrollY + height)
+        // 1. Clipping Path (Keep your existing path logic)
+        val path = android.graphics.Path()
+        val cornerRadius = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 16f, resources.displayMetrics)
+        path.addRoundRect(
+            scrollX.toFloat(), scrollY.toFloat(),
+            scrollX.toFloat() + width.toFloat(), scrollY.toFloat() + height.toFloat(),
+            floatArrayOf(0f, 0f, 0f, 0f, 0f, 0f, cornerRadius, cornerRadius),
+            android.graphics.Path.Direction.CW
+        )
 
-        var logicalLineCounter = 1
-        val firstLineStartOffset = layout.getLineStart(firstVisibleLine)
+        canvas.save()
+        canvas.clipPath(path)
 
-        for (idx in 0 until firstLineStartOffset) {
-            if (textContent[idx] == '\n') {
-                logicalLineCounter++
-            }
-        }
-
+        // 2. Draw Gutter Background
         canvas.drawRect(
-            scrollX.toFloat(),
-            scrollY.toFloat(),
-            scrollX.toFloat() + gutterWidth.toFloat(),
-            scrollY.toFloat() + height.toFloat(),
+            scrollX.toFloat(), scrollY.toFloat(),
+            scrollX.toFloat() + gutterWidth.toFloat(), scrollY.toFloat() + height.toFloat(),
             gutterBackgroundPaint
         )
+
+        val borderX = scrollX.toFloat() + gutterWidth.toFloat()
+        canvas.drawLine(
+            borderX, scrollY.toFloat(),
+            borderX, scrollY.toFloat() + height.toFloat(),
+            gutterBorderPaint
+        )
+
+        // 3. Stateless Line Number Drawing
+        val firstVisibleLine = layout.getLineForVertical((scrollY - paddingTop).coerceAtLeast(0))
+        val lastVisibleLine = layout.getLineForVertical((scrollY + height - paddingTop).coerceAtLeast(0))
 
         val metrics = lineNumberPaint.fontMetrics
         val fontHeightOffset = (metrics.descent + metrics.ascent) / 2f
 
         canvas.withTranslation(x = scrollX.toFloat()) {
-            for (visualLine in firstVisibleLine..lastVisibleLine) {
-                if (visualLine >= layout.lineCount) break
-                val startOffset = layout.getLineStart(visualLine)
+            // Pre-calculate line numbers up to the first visible line to start the count correctly
+            var currentLogicalLine = 1
+            for (i in 0 until layout.lineCount) {
+                val lineStart = layout.getLineStart(i)
+                // A logical line is a NEW one if it's the start (0) or follows a '\n'
+                val isStartOfLogicalLine = i == 0 || text?.get(lineStart - 1) == '\n'
 
-                val isNewLogicalLine = visualLine == 0 || textContent[startOffset - 1] == '\n'
-
-                if (isNewLogicalLine) {
-                    val spacingExtra = lineSpacingExtra
-                    val top = layout.getLineTop(visualLine).toFloat() + paddingTop
-                    val bottom = layout.getLineBottom(visualLine).toFloat() + paddingTop - spacingExtra
-                    val lineVerticalCenter = top + (bottom - top) / 2f
-                    val centeredY = lineVerticalCenter - fontHeightOffset
+                if (isStartOfLogicalLine && i < firstVisibleLine) {
+                    currentLogicalLine++
+                } else if (isStartOfLogicalLine && i in firstVisibleLine..lastVisibleLine) {
+                    // This is a visible logical line, draw the number
+                    val top = layout.getLineTop(i).toFloat() + paddingTop
+                    val bottom = layout.getLineBottom(i).toFloat() + paddingTop
+                    val centeredY = (top + bottom) / 2f - fontHeightOffset
 
                     this.drawText(
-                        logicalLineCounter.toString(),
+                        currentLogicalLine.toString(),
                         gutterWidth - 16f,
                         centeredY,
                         lineNumberPaint
                     )
-                    logicalLineCounter++
+                    currentLogicalLine++
                 }
             }
         }
+        canvas.restore()
     }
 
     private fun drawPlaceholder(canvas: Canvas) {

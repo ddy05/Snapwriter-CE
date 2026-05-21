@@ -35,6 +35,8 @@ class CodeEditor @JvmOverloads constructor(
     attrs: AttributeSet? = null
 ) : AppCompatEditText(context, attrs) {
 
+    private var isInitialized = false
+
     private var matchedOpenIndex: Int = -1
     private var matchedCloseIndex: Int = -1
     private var currentFileExtension: String = "php"
@@ -49,7 +51,7 @@ class CodeEditor @JvmOverloads constructor(
     private val clrIdentifier = "#8BE9FD".toColorInt()
 
     private val gutterBorderPaint = Paint().apply {
-        color = Color.parseColor("#333333") // Adjust color to your preference
+        color = Color.parseColor("#333333")
         strokeWidth = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 1f, resources.displayMetrics)
         style = Paint.Style.STROKE
     }
@@ -91,11 +93,11 @@ class CodeEditor @JvmOverloads constructor(
             invalidate()
         }
 
-    private val gutterWidth = 100
+    private var dynamicGutterWidth: Int = 100
     private val internalTextPadding = 20
 
     private val totalLeftOffset: Int
-        get() = if (showLineNumbers) gutterWidth + internalTextPadding else internalTextPadding
+        get() = if (showLineNumbers) dynamicGutterWidth + internalTextPadding else internalTextPadding
 
     private val lineNumberPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.GRAY
@@ -132,6 +134,15 @@ class CodeEditor @JvmOverloads constructor(
     private val genericLiterals = Pattern.compile("\\b(true|false|null|NaN|undefined|TRUE|FALSE|NULL)\\b|\\b\\d+(\\.\\d+)?\\b")
 
     private val htmlVoidTags = setOf("area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr")
+
+    private fun calculateGutterWidth(): Int {
+        val lineCount = this.lineCount.coerceAtLeast(1)
+        val digits = lineCount.toString().length
+        val charWidth = lineNumberPaint.textSize * 0.6f
+        val padding = 40f
+
+        return (digits * charWidth + padding).toInt().coerceAtLeast(80)
+    }
 
     private fun scanAndFindMatchingPairs() {
         matchedOpenIndex = -1
@@ -247,45 +258,46 @@ class CodeEditor @JvmOverloads constructor(
     private var sansTypeface: android.graphics.Typeface? = null
     private var monoTypeface: android.graphics.Typeface? = null
 
-//    private fun applyTypefaceForExtension(ext: String) {
-//        val isTextual = (ext == "txt" || ext == "md")
-//        this.typeface = if (isTextual) sansTypeface else monoTypeface
-//        invalidate()
-//    }
-
-    // Inside your CodeEditor.kt, update how you set the paint
     private fun applyTypefaceForExtension(ext: String) {
         val isTextual = (ext == "txt" || ext == "md")
         val selectedTypeface = if (isTextual) sansTypeface else monoTypeface
 
         this.typeface = selectedTypeface
 
-        // FORCE the paint to use weight 400
         this.paint.typeface = android.graphics.Typeface.create(selectedTypeface, android.graphics.Typeface.NORMAL)
-        // Sometimes you need to force the paint weight for variable fonts
-        this.paint.strokeWidth = 0.5f // Tiny adjustment if it still looks too light
+        this.paint.strokeWidth = 0.5f
 
         invalidate()
     }
 
+    override fun onTextContextMenuItem(id: Int): Boolean {
+        val consumed = super.onTextContextMenuItem(id)
+        if (id == android.R.id.paste) {
+            text?.let {
+                applyTabReplacementSpans(it)
+                runSyntaxHighlighter(it)
+                updatePaddingAndLayout()
+            }
+        }
+        return consumed
+    }
+
     init {
+        isInitialized = true
         try {
-            // Use ResourcesCompat to load from your res/font folder
             sansTypeface = androidx.core.content.res.ResourcesCompat.getFont(
                 context,
-                R.font.font_instrument_sans // Matches your res/font/font_instrument_sans.xml
+                R.font.font_instrument_sans
             )
             monoTypeface = androidx.core.content.res.ResourcesCompat.getFont(
                 context,
-                R.font.font_suse_mono // Matches your res/font/font_suse_mono.xml
+                R.font.font_suse_mono
             )
         } catch (e: Exception) {
-            // Fallback
             sansTypeface = android.graphics.Typeface.SANS_SERIF
             monoTypeface = android.graphics.Typeface.MONOSPACE
         }
 
-        // Set your typeface
         lineNumberPaint.typeface = monoTypeface
         applyTypefaceForExtension(currentFileExtension)
 
@@ -317,6 +329,7 @@ class CodeEditor @JvmOverloads constructor(
                     lastInsertedChar = added[0]
                     lastInsertOffset = start
                 }
+
             }
 
             override fun afterTextChanged(s: Editable?) {
@@ -556,7 +569,7 @@ class CodeEditor @JvmOverloads constructor(
     }
 
     private fun runSyntaxHighlighter(editable: Editable) {
-        if (currentFileExtension == null) return
+        if (!isInitialized || currentFileExtension == null) return
 
         val oldSpans = editable.getSpans(0, editable.length, ForegroundColorSpan::class.java)
         for (span in oldSpans) { editable.removeSpan(span) }
@@ -1003,6 +1016,15 @@ class CodeEditor @JvmOverloads constructor(
         return super.bringPointIntoView(offset)
     }
 
+
+    override fun onTextChanged(text: CharSequence?, start: Int, lengthBefore: Int, lengthAfter: Int) {
+        super.onTextChanged(text, start, lengthBefore, lengthAfter)
+
+        if (lengthBefore != lengthAfter) {
+            updatePaddingAndLayout()
+        }
+    }
+
     override fun onSelectionChanged(selStart: Int, selEnd: Int) {
         if (isScrolling) return
         super.onSelectionChanged(selStart, selEnd)
@@ -1048,15 +1070,34 @@ class CodeEditor @JvmOverloads constructor(
 
     override fun setTypeface(tf: android.graphics.Typeface?) {
         super.setTypeface(tf)
-        placeholderPaint?.typeface = tf
-        placeholderPaint?.textSize = this.textSize
-        text?.let {
-            applyTabReplacementSpans(it)
-            runSyntaxHighlighter(it)
+        if (isInitialized) {
+            placeholderPaint?.typeface = tf
+            placeholderPaint?.textSize = this.textSize
+            text?.let {
+                applyTabReplacementSpans(it)
+                runSyntaxHighlighter(it)
+            }
+        }
+    }
+
+    override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
+        super.onLayout(changed, left, top, right, bottom)
+
+        val newWidth = calculateGutterWidth()
+        val newTotalOffset = if (showLineNumbers) newWidth + internalTextPadding else internalTextPadding
+
+        if (dynamicGutterWidth != newWidth || paddingLeft != newTotalOffset) {
+            dynamicGutterWidth = newWidth
+            super.setPadding(newTotalOffset, 20, 20, 20)
         }
     }
 
     override fun onDraw(canvas: Canvas) {
+        val expectedWidth = calculateGutterWidth()
+        if (dynamicGutterWidth != expectedWidth) {
+            updatePaddingAndLayout()
+        }
+
         val layout = layout ?: return super.onDraw(canvas)
 
         canvas.save()
@@ -1142,7 +1183,6 @@ class CodeEditor @JvmOverloads constructor(
         highlightCurrentLine = config.highlightCurrentLine
         this.autoPairBraces = config.autoPairBraces
 
-        // Switch typeface using the new cached assets
         applyTypefaceForExtension(config.fileExtension)
 
         text?.let { runSyntaxHighlighter(it) }
@@ -1290,7 +1330,6 @@ class CodeEditor @JvmOverloads constructor(
     private fun drawLineNumbers(canvas: Canvas) {
         val layout = layout ?: return
 
-        // 1. Clipping Path (Keep your existing path logic)
         val path = android.graphics.Path()
         val cornerRadius = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 16f, resources.displayMetrics)
         path.addRoundRect(
@@ -1303,21 +1342,19 @@ class CodeEditor @JvmOverloads constructor(
         canvas.save()
         canvas.clipPath(path)
 
-        // 2. Draw Gutter Background
         canvas.drawRect(
             scrollX.toFloat(), scrollY.toFloat(),
-            scrollX.toFloat() + gutterWidth.toFloat(), scrollY.toFloat() + height.toFloat(),
+            scrollX.toFloat() + dynamicGutterWidth.toFloat(), scrollY.toFloat() + height.toFloat(),
             gutterBackgroundPaint
         )
 
-        val borderX = scrollX.toFloat() + gutterWidth.toFloat()
+        val borderX = scrollX.toFloat() + dynamicGutterWidth.toFloat()
         canvas.drawLine(
             borderX, scrollY.toFloat(),
             borderX, scrollY.toFloat() + height.toFloat(),
             gutterBorderPaint
         )
 
-        // 3. Stateless Line Number Drawing
         val firstVisibleLine = layout.getLineForVertical((scrollY - paddingTop).coerceAtLeast(0))
         val lastVisibleLine = layout.getLineForVertical((scrollY + height - paddingTop).coerceAtLeast(0))
 
@@ -1325,24 +1362,21 @@ class CodeEditor @JvmOverloads constructor(
         val fontHeightOffset = (metrics.descent + metrics.ascent) / 2f
 
         canvas.withTranslation(x = scrollX.toFloat()) {
-            // Pre-calculate line numbers up to the first visible line to start the count correctly
             var currentLogicalLine = 1
             for (i in 0 until layout.lineCount) {
                 val lineStart = layout.getLineStart(i)
-                // A logical line is a NEW one if it's the start (0) or follows a '\n'
                 val isStartOfLogicalLine = i == 0 || text?.get(lineStart - 1) == '\n'
 
                 if (isStartOfLogicalLine && i < firstVisibleLine) {
                     currentLogicalLine++
                 } else if (isStartOfLogicalLine && i in firstVisibleLine..lastVisibleLine) {
-                    // This is a visible logical line, draw the number
                     val top = layout.getLineTop(i).toFloat() + paddingTop
                     val bottom = layout.getLineBottom(i).toFloat() + paddingTop
                     val centeredY = (top + bottom) / 2f - fontHeightOffset
 
                     this.drawText(
                         currentLogicalLine.toString(),
-                        gutterWidth - 16f,
+                        dynamicGutterWidth - 16f,
                         centeredY,
                         lineNumberPaint
                     )
@@ -1368,9 +1402,17 @@ class CodeEditor @JvmOverloads constructor(
     }
 
     private fun updatePaddingAndLayout() {
-        super.setPadding(totalLeftOffset, 20, 20, 20)
-        requestLayout()
-        invalidate()
+        post {
+            val newWidth = calculateGutterWidth()
+            val newTotalOffset = if (showLineNumbers) newWidth + internalTextPadding else internalTextPadding
+
+            if (dynamicGutterWidth != newWidth || paddingLeft != newTotalOffset) {
+                dynamicGutterWidth = newWidth
+                super.setPadding(newTotalOffset, 20, 20, 20)
+                requestLayout()
+                invalidate()
+            }
+        }
     }
 
     private fun applyTabReplacementSpans(editable: Editable) {

@@ -8,15 +8,12 @@ import android.os.Bundle
 import android.text.SpannableString
 import android.text.Spanned
 import android.text.style.ForegroundColorSpan
-import android.view.LayoutInflater
 import android.view.View
 import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.compose.ui.graphics.Color
-import androidx.core.view.WindowCompat
 import androidx.documentfile.provider.DocumentFile
 import ddy.snapwriter.config.EditorConfig
 import ddy.snapwriter.ui.editor.CodeEditor
@@ -52,10 +49,7 @@ class MainActivity : AppCompatActivity() {
                 )
 
                 tvCurrentFile.text = spannable
-            } else {
-                // If not dirty, just show the filename normally
-                tvCurrentFile.text = currentFileName
-            }
+            } else tvCurrentFile.text = currentFileName
         }
     private var isPendingSaveAs = false
 
@@ -65,41 +59,22 @@ class MainActivity : AppCompatActivity() {
 
         setContentView(R.layout.activity_main)
 
-        onBackPressedDispatcher.addCallback(this, object : androidx.activity.OnBackPressedCallback(true) {
-            override fun handleOnBackPressed() {
-                // Check if dialog is already showing (to avoid opening multiple)
-                toggleExitDialog()
-            }
-        })
+        editor = findViewById(R.id.codeEditor)
+        tvCurrentFile = findViewById(R.id.tvCurrentFile)
+        tvCurrentFile.text = currentFileName
+        resolver = EditorConfigResolver(this)
 
         val rootLayout = findViewById<View>(R.id.rootLayout)
         androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(rootLayout) { view, insets ->
             val systemBars = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars())
             val ime = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.ime())
-
             val topPadding = systemBars.top
             val bottomPadding = if (insets.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime())) {
                 ime.bottom
-            } else {
-                systemBars.bottom
-            }
-
+            } else systemBars.bottom
             view.setPadding(systemBars.left, topPadding, systemBars.right, bottomPadding)
             insets
         }
-
-        editor = findViewById(R.id.codeEditor)
-        tvCurrentFile = findViewById(R.id.tvCurrentFile)
-        tvCurrentFile.text = currentFileName
-
-        resolver = EditorConfigResolver(this)
-
-        findViewById<Button>(R.id.btnIndent).setOnClickListener { editor.indentSelectedText() }
-        findViewById<Button>(R.id.btnDeindent).setOnClickListener { editor.deindentSelectedText() }
-        findViewById<Button>(R.id.btnCurly).setOnClickListener { editor.insertSymbolPair("{", "}") }
-        findViewById<Button>(R.id.btnSquare).setOnClickListener { editor.insertSymbolPair("[", "]") }
-        findViewById<Button>(R.id.btnParens).setOnClickListener { editor.insertSymbolPair("(", ")") }
-        findViewById<Button>(R.id.btnSemicolon).setOnClickListener { editor.insertSemicolon() }
 
         val wrapBtn = findViewById<com.google.android.material.button.MaterialButton>(R.id.btnWrap)
         val lineBtn = findViewById<com.google.android.material.button.MaterialButton>(R.id.btnLines)
@@ -120,13 +95,11 @@ class MainActivity : AppCompatActivity() {
 
         menuBtn.setOnClickListener { view ->
             val popup = PopupMenu(this, view)
-
             popup.menu.add(0, 1, 0, "New File")
             popup.menu.add(0, 2, 1, "Open")
             popup.menu.add(0, 3, 2, "Save")
             popup.menu.add(0, 4, 3, "Save As")
             popup.menu.add(0, 5, 4, "Close")
-            // Inside your popup.menu.add logic
             popup.setOnMenuItemClickListener { item ->
                 when (item.itemId) {
                     1 -> checkIfDirtyThenAction { showNewFileDialog() }
@@ -149,11 +122,24 @@ class MainActivity : AppCompatActivity() {
             androidx.appcompat.widget.TooltipCompat.setTooltipText(editorModeBtn, tooltip)
         }
 
+        findViewById<Button>(R.id.btnIndent).setOnClickListener { editor.indentSelectedText() }
+        findViewById<Button>(R.id.btnDeindent).setOnClickListener { editor.deindentSelectedText() }
+        findViewById<Button>(R.id.btnCurly).setOnClickListener { editor.insertSymbolPair("{", "}") }
+        findViewById<Button>(R.id.btnSquare).setOnClickListener { editor.insertSymbolPair("[", "]") }
+        findViewById<Button>(R.id.btnParens).setOnClickListener { editor.insertSymbolPair("(", ")") }
+        findViewById<Button>(R.id.btnSemicolon).setOnClickListener { editor.insertSemicolon() }
+
         editor.addTextChangedListener(object : android.text.TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: android.text.Editable?) {
                 isDirty = s.toString() != lastSavedContent
+            }
+        })
+
+        onBackPressedDispatcher.addCallback(this, object : androidx.activity.OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                toggleExitDialog()
             }
         })
     }
@@ -324,8 +310,4 @@ class MainActivity : AppCompatActivity() {
     private fun onSettingsChanged() {
         currentUri?.let { uri -> saveCurrentConfig(uri) }
     }
-
-
-
-
 }

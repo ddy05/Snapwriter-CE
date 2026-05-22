@@ -5,4 +5,31 @@
         name="Theme.Snapwriter"
         parent="Theme.Material3.DayNight.NoActionBar" />
 
+    <style name="NuclearDialogTheme" parent="ThemeOverlay.MaterialComponents.MaterialAlertDialog">
+        <!-- Apply the rounded background -->
+        <item name="android:windowBackground">@drawable/bg_dialog_rounded</item>
+
+        <!-- Define the colors -->
+        <item name="colorSurface">#2f2f35</item>
+        <item name="colorOnSurface">#FFFFFF</item> <!-- White text -->
+        <item name="colorPrimary">#7075FF</item>   <!-- Purple accent for buttons -->
+
+        <item name="materialAlertDialogTitleTextStyle">@style/NuclearDialogTitle</item>
+        <item name="materialAlertDialogBodyTextStyle">@style/NuclearDialogBody</item>
+    </style>
+
+    <style name="NuclearDialogTheme.DestructiveButton" parent="Widget.MaterialComponents.Button.TextButton.Dialog">
+        <item name="android:textColor">#FF5555</item> <!-- Your red tag color -->
+    </style>
+
+    <!-- Title Font -->
+    <style name="NuclearDialogTitle" parent="MaterialAlertDialog.MaterialComponents.Title.Text">
+        <item name="android:fontFamily">@font/font_instrument_sans</item>
+<!--        <item name="android:textStyle">bold</item>-->
+    </style>
+
+    <!-- Body Font -->
+    <style name="NuclearDialogBody" parent="MaterialAlertDialog.MaterialComponents.Body.Text">
+        <item name="android:fontFamily">@font/font_instrument_sans</item>
+    </style>
 </resources>

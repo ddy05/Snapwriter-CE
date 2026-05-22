@@ -7,4 +7,9 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <color name="snappy_indigo">#20203F</color>
+    <color name="snappy_indigo_lighter">#32325C</color>
+    <color name="snappy_blurple">#7075FF</color>
+    <color name="echo_night">#0A0A1A</color>
+    <color name="echo_light">#EAEAD5</color>
 </resources>

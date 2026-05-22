@@ -50,6 +50,9 @@ class CodeEditor @JvmOverloads constructor(
     private val clrLiteral = "#FFB86C".toColorInt()
     private val clrIdentifier = "#8BE9FD".toColorInt()
 
+    private val backgroundColor = androidx.core.content.ContextCompat.getColor(context, R.color.echo_night)
+    private val textColor = Color.WHITE
+
     private val gutterBorderPaint = Paint().apply {
         color = Color.parseColor("#333333")
         strokeWidth = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 1f, resources.displayMetrics)
@@ -107,7 +110,7 @@ class CodeEditor @JvmOverloads constructor(
     }
     private val currentLinePaint = Paint().apply { color = "#308084ff".toColorInt() }
     private val gutterBackgroundPaint = Paint().apply {
-        color = Color.BLACK
+        color = backgroundColor
         style = Paint.Style.FILL
     }
     private val placeholderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -301,8 +304,8 @@ class CodeEditor @JvmOverloads constructor(
         lineNumberPaint.typeface = monoTypeface
         applyTypefaceForExtension(currentFileExtension)
 
-        setBackgroundColor(Color.BLACK)
-        setTextColor(Color.WHITE)
+//        setBackgroundColor(backgroundColor)
+        setTextColor(textColor)
 
         inputType = android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE or android.text.InputType.TYPE_CLASS_TEXT
         isSingleLine = false
@@ -1101,9 +1104,8 @@ class CodeEditor @JvmOverloads constructor(
         val layout = layout ?: return super.onDraw(canvas)
 
         canvas.save()
-        if (highlightCurrentLine && !isReadOnly) {
-            drawCurrentLineHighlight(canvas, layout)
-        }
+        if (highlightCurrentLine) drawCurrentLineHighlight(canvas, layout)
+
 
         if (matchedOpenIndex != -1 && matchedCloseIndex != -1) {
             drawCharacterHighlightBox(canvas, layout, matchedOpenIndex)
@@ -1305,7 +1307,7 @@ class CodeEditor @JvmOverloads constructor(
     }
 
 
-    private fun drawCurrentLineHighlight(canvas: Canvas, layout: android.text.Layout) {
+    private fun drawCurrentLineHighlight(canvas: Canvas, layout: Layout) {
         val range = getCurrentLogicalLineRange() ?: return
         val startLine = range.first
         val endLine = range.second
@@ -1331,7 +1333,7 @@ class CodeEditor @JvmOverloads constructor(
         val layout = layout ?: return
 
         val path = android.graphics.Path()
-        val cornerRadius = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 16f, resources.displayMetrics)
+        val cornerRadius = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 22f, resources.displayMetrics)
         path.addRoundRect(
             scrollX.toFloat(), scrollY.toFloat(),
             scrollX.toFloat() + width.toFloat(), scrollY.toFloat() + height.toFloat(),

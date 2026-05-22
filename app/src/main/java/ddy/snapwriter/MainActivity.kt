@@ -24,12 +24,32 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvCurrentFile: TextView
 
     private var currentUri: Uri? = null
-    private var currentFileName: String = "untitled.txt"
+    private var currentFileName: String = "Untitled"
 
     private val extendedLanguages = arrayOf("html", "php", "js", "css", "java", "cs", "kt", "py", "json", "sql", "txt", "md")
 
     private fun getFileNameFromUri(uri: Uri): String {
-        return DocumentFile.fromSingleUri(this, uri)?.name ?: "untitled.txt"
+        return DocumentFile.fromSingleUri(this, uri)?.name ?: "Untitled"
+    }
+
+    private var exitDialog: AlertDialog? = null
+
+    private fun toggleExitDialog() {
+        if (exitDialog != null && exitDialog!!.isShowing) {
+            exitDialog!!.dismiss()
+            exitDialog = null
+        } else {
+            val builder = AlertDialog.Builder(this, R.style.NuclearDialogTheme)
+            builder.setTitle("Are you sure you want to exit?")
+            builder.setPositiveButton("Exit") { _, _ -> finish() }
+            builder.setNegativeButton("Cancel") { dialog, _ ->
+                dialog.dismiss()
+                exitDialog = null
+            }
+            exitDialog = builder.create()
+            exitDialog!!.show()
+            exitDialog!!.getButton(android.content.DialogInterface.BUTTON_POSITIVE)?.setTextColor(android.graphics.Color.parseColor("#FF5555"))
+        }
     }
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
@@ -37,6 +57,13 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
 
         setContentView(R.layout.activity_main)
+
+        onBackPressedDispatcher.addCallback(this, object : androidx.activity.OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                // Check if dialog is already showing (to avoid opening multiple)
+                toggleExitDialog()
+            }
+        })
 
         val rootLayout = findViewById<View>(R.id.rootLayout)
         androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(rootLayout) { view, insets ->
@@ -63,13 +90,27 @@ class MainActivity : AppCompatActivity() {
         val wrapBtn = findViewById<com.google.android.material.button.MaterialButton>(R.id.btnWrap)
         val lineBtn = findViewById<com.google.android.material.button.MaterialButton>(R.id.btnLines)
         val menuBtn = findViewById<com.google.android.material.button.MaterialButton>(R.id.menuBtn)
-        val readOnlyBtn = findViewById<com.google.android.material.button.MaterialButton>(R.id.btnReadOnly)
+        val editorModeBtn = findViewById<com.google.android.material.button.MaterialButton>(R.id.btnToggleEditorMode)
+
+        wrapBtn.setOnClickListener {
+            editor.wordWrapEnabled = !editor.wordWrapEnabled
+            wrapBtn.isChecked = editor.wordWrapEnabled
+            onSettingsChanged()
+        }
+
+        lineBtn.setOnClickListener {
+            editor.showLineNumbers = !editor.showLineNumbers
+            lineBtn.isChecked = editor.showLineNumbers
+            onSettingsChanged()
+        }
 
         menuBtn.setOnClickListener { view ->
             val popup = android.widget.PopupMenu(this, view)
             popup.menu.add(0, 1, 0, "New File")
             popup.menu.add(0, 2, 1, "Open")
             popup.menu.add(0, 3, 2, "Save")
+            popup.menu.add(0, 4, 3, "Save As")
+            popup.menu.add(0, 5, 4, "Close")
             // Inside your popup.menu.add logic
             popup.setOnMenuItemClickListener { item ->
                 when (item.itemId) {
@@ -83,16 +124,13 @@ class MainActivity : AppCompatActivity() {
             popup.show()
         }
 
-        wrapBtn.setOnClickListener {
-            editor.wordWrapEnabled = !editor.wordWrapEnabled
-            wrapBtn.isChecked = editor.wordWrapEnabled
+        editorModeBtn.setOnClickListener {
+            editor.isReadOnly = !editor.isReadOnly
+            editorModeBtn.isChecked = editor.isReadOnly
             onSettingsChanged()
-        }
 
-        lineBtn.setOnClickListener {
-            editor.showLineNumbers = !editor.showLineNumbers
-            lineBtn.isChecked = editor.showLineNumbers
-            onSettingsChanged()
+            val tooltip = if (editor.isReadOnly) "Currently Viewing" else "Currently Editing"
+            androidx.appcompat.widget.TooltipCompat.setTooltipText(editorModeBtn, tooltip)
         }
     }
 
@@ -150,11 +188,26 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+//    private fun saveActiveDocument() {
+//        currentUri?.let { uri ->
+//            saveToUri(uri, editor.text.toString())
+//            Toast.makeText(this, "Saved!", Toast.LENGTH_SHORT).show()
+//        } ?: Toast.makeText(this, "No file open", Toast.LENGTH_SHORT).show()
+//    }
+
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     private fun saveActiveDocument() {
         currentUri?.let { uri ->
+            // If we have a URI, save directly
             saveToUri(uri, editor.text.toString())
+//            lastSavedContent = editor.text.toString() // Sync the baseline
+//            isDirty = false
             Toast.makeText(this, "Saved!", Toast.LENGTH_SHORT).show()
-        } ?: Toast.makeText(this, "No file open", Toast.LENGTH_SHORT).show()
+        } ?: run {
+            // If we don't have a URI, open the "Save As" dialog
+            Toast.makeText(this, "Select a location to save...", Toast.LENGTH_SHORT).show()
+            showSaveAsDialog()
+        }
     }
 
     private fun saveToUri(uri: Uri, text: String) {
@@ -192,7 +245,7 @@ class MainActivity : AppCompatActivity() {
         val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
             addCategory(Intent.CATEGORY_OPENABLE)
             type = "*/*"
-            putExtra(Intent.EXTRA_TITLE, "untitled.txt")
+            putExtra(Intent.EXTRA_TITLE, "")
         }
         createFileLauncher.launch(intent)
     }

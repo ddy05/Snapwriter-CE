@@ -26,6 +26,14 @@ class MainActivity : AppCompatActivity() {
     private var currentUri: Uri? = null
     private var currentFileName: String = "Untitled"
 
+    private var lastSavedContent: String = ""
+    private var isDirty: Boolean = false
+        set(value) {
+            field = value
+            // Optional: Update title to show an asterisk when dirty
+            tvCurrentFile.text = if (value) "$currentFileName*" else currentFileName
+        }
+
     private val extendedLanguages = arrayOf("html", "php", "js", "css", "java", "cs", "kt", "py", "json", "sql", "txt", "md")
 
     private fun getFileNameFromUri(uri: Uri): String {
@@ -117,7 +125,8 @@ class MainActivity : AppCompatActivity() {
                     1 -> showNewFileDialog()
                     2 -> showOpenFileDialog()
                     3 -> saveActiveDocument()
-                    4 -> showSaveAsDialog() // Add this option to your menu!
+                    4 -> showSaveAsDialog()
+                    5 -> closeCurrentFile()
                 }
                 true
             }
@@ -132,6 +141,14 @@ class MainActivity : AppCompatActivity() {
             val tooltip = if (editor.isReadOnly) "Currently Viewing" else "Currently Editing"
             androidx.appcompat.widget.TooltipCompat.setTooltipText(editorModeBtn, tooltip)
         }
+
+        editor.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) {
+                isDirty = s.toString() != lastSavedContent
+            }
+        })
     }
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
@@ -142,6 +159,28 @@ class MainActivity : AppCompatActivity() {
                 loadFromUri(uri)
             }
         }
+    }
+
+    private fun closeCurrentFile() {
+        if (isDirty) {
+            AlertDialog.Builder(this, R.style.NuclearDialogTheme)
+                .setTitle("Unsaved Changes")
+                .setMessage("You have unsaved changes. Close anyway?")
+                .setPositiveButton("Close") { _, _ -> resetEditorState() }
+                .setNegativeButton("Cancel", null)
+                .show()
+        } else {
+            resetEditorState()
+        }
+    }
+
+    private fun resetEditorState() {
+        currentUri = null
+        currentFileName = "Untitled"
+        editor.setText("")
+        lastSavedContent = ""
+        isDirty = false
+        tvCurrentFile.text = currentFileName
     }
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
@@ -179,32 +218,23 @@ class MainActivity : AppCompatActivity() {
     private fun loadFromUri(uri: Uri) {
         currentUri = uri
         currentFileName = getFileNameFromUri(uri)
-        tvCurrentFile.text = currentFileName
 
         contentResolver.openInputStream(uri)?.use { inputStream ->
             val content = inputStream.bufferedReader().use { it.readText() }
             editor.setText(content)
+            lastSavedContent = content
+            isDirty = false
             loadAndApplyFileState(uri, currentFileName)
         }
     }
 
-//    private fun saveActiveDocument() {
-//        currentUri?.let { uri ->
-//            saveToUri(uri, editor.text.toString())
-//            Toast.makeText(this, "Saved!", Toast.LENGTH_SHORT).show()
-//        } ?: Toast.makeText(this, "No file open", Toast.LENGTH_SHORT).show()
-//    }
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     private fun saveActiveDocument() {
         currentUri?.let { uri ->
-            // If we have a URI, save directly
             saveToUri(uri, editor.text.toString())
-//            lastSavedContent = editor.text.toString() // Sync the baseline
-//            isDirty = false
             Toast.makeText(this, "Saved!", Toast.LENGTH_SHORT).show()
         } ?: run {
-            // If we don't have a URI, open the "Save As" dialog
             Toast.makeText(this, "Select a location to save...", Toast.LENGTH_SHORT).show()
             showSaveAsDialog()
         }
@@ -212,6 +242,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun saveToUri(uri: Uri, text: String) {
         contentResolver.openOutputStream(uri, "wt")?.use { it.writer().use { w -> w.write(text) } }
+        lastSavedContent = text
+        isDirty = false
     }
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)

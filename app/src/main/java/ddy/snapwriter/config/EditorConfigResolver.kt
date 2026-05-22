@@ -1,23 +1,14 @@
-package ddy.snapwriter.data
+package ddy.snapwriter.config
 
 import android.content.Context
 import android.net.Uri
-import ddy.snapwriter.config.EditorConfig
-import ddy.snapwriter.config.EditorDefaults
+import ddy.snapwriter.config.FileLevelPreferences
 
 class EditorConfigResolver(context: Context) {
     private val preferences = FileLevelPreferences(context)
 
-    /**
-     * Resolves configuration for a file.
-     * @param uri The document Uri (used for storage keys).
-     * @param fileName The name of the file (used for determining default type).
-     */
     fun resolve(uri: Uri, fileName: String): EditorConfig {
-        // Use the name to get type-specific defaults
         val defaultConfig = EditorDefaults.getDefaultConfig(fileName)
-
-        // Load custom overrides using the Uri key
         val saved = preferences.loadConfig(uri)
 
         return if (saved != null) {

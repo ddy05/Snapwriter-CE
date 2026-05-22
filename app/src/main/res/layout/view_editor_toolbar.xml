@@ -60,13 +60,12 @@
             android:background="?android:attr/selectableItemBackground"/>
 
         <Button
-            android:id="@+id/btnCommandPalette"
+            android:id="@+id/btnSemicolon"
             style="?android:attr/buttonStyleSmall"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="⌘"
-            android:textColor="#00E676"
-            android:textStyle="bold"
+            android:text=";"
+            android:textColor="#FFFFFF"
             android:background="?android:attr/selectableItemBackground"/>
 
     </LinearLayout>

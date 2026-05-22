@@ -1,10 +1,8 @@
-package ddy.snapwriter.data
+package ddy.snapwriter.config
 
 import android.content.Context
 import android.net.Uri
 import androidx.core.content.edit
-import ddy.snapwriter.config.EditorConfig
-import ddy.snapwriter.config.EditorDefaults
 
 class FileLevelPreferences(context: Context) {
     private val preferences = context.getSharedPreferences("editor_prefs", Context.MODE_PRIVATE)

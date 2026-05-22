@@ -1,7 +1,6 @@
 package ddy.snapwriter.config
 
 object EditorDefaults {
-    // Inside EditorDefaults.kt
     private val CODE_EXTENSIONS = setOf(
         "cs", "java", "kt", "py",
         "html", "css", "js", "php",
@@ -12,8 +11,7 @@ object EditorDefaults {
     )
 
     fun getDefaultConfig(fileName: String): EditorConfig {
-        val ext = fileName.substringAfterLast('.', "").lowercase()
-        return when (ext) {
+        return when (val ext = fileName.substringAfterLast('.', "").lowercase()) {
             in CODE_EXTENSIONS -> EditorConfig(
                 showLineNumbers = true,
                 wordWrapEnabled = false,

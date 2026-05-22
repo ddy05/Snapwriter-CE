@@ -7,9 +7,28 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+
+    <!-- Main UI Theme -->
     <color name="snappy_indigo">#20203F</color>
     <color name="snappy_indigo_lighter">#32325C</color>
     <color name="snappy_blurple">#7075FF</color>
     <color name="echo_night">#0A0A1A</color>
-    <color name="echo_light">#EAEAD5</color>
+
+    <!-- UI Components -->
+    <color name="border_color">#333333</color>
+    <color name="yellow_ui_indicator">#FFD500</color>
+    <color name="current_line_highlight">#308084FF</color>
+    <color name="placeholder_text_color">#555555</color>
+
+    <!-- Syntax Highlighting -->
+    <color name="clr_keyword">#FF79C6</color>
+    <color name="clr_tag">#FF5555</color>
+    <color name="clr_attr">#50FA7B</color>
+    <color name="clr_string">#F1FA8C</color>
+    <color name="clr_comment">#6272A4</color>
+    <color name="clr_variable">#BD93F9</color>
+    <color name="clr_literal">#FFB86C</color>
+    <color name="clr_identifier">#8BE9FD</color>
+    <color name="symbol_pair_bg">#3300E6FF</color>
+    <color name="symbol_pair_border">#FF00E6FF</color>
 </resources>

@@ -23,6 +23,7 @@ import android.view.inputmethod.InputConnection
 import android.view.inputmethod.InputConnectionWrapper
 import androidx.annotation.RequiresApi
 import androidx.appcompat.widget.AppCompatEditText
+import androidx.core.content.ContextCompat
 import ddy.snapwriter.config.EditorConfig
 import androidx.core.graphics.withTranslation
 import androidx.core.graphics.toColorInt
@@ -30,52 +31,13 @@ import ddy.snapwriter.R
 import java.util.regex.Pattern
 
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
-class CodeEditor @JvmOverloads constructor(
-    context: Context,
-    attrs: AttributeSet? = null
-) : AppCompatEditText(context, attrs) {
-
-    private var isInitialized = false
-
-    private var matchedOpenIndex: Int = -1
-    private var matchedCloseIndex: Int = -1
+class CodeEditor @JvmOverloads constructor(context: Context, attrs: AttributeSet? = null) : AppCompatEditText(context, attrs) {
+    /* Core */
+    private var isInitialized: Boolean = false
+    private var isSelfModifyingText: Boolean = false
     private var currentFileExtension: String = "php"
 
-    private val clrKeyword = "#FF79C6".toColorInt()
-    private val clrTag = "#FF5555".toColorInt()
-    private val clrAttr = "#50FA7B".toColorInt()
-    private val clrString = "#F1FA8C".toColorInt()
-    private val clrComment = "#6272A4".toColorInt()
-    private val clrVariable = "#BD93F9".toColorInt()
-    private val clrLiteral = "#FFB86C".toColorInt()
-    private val clrIdentifier = "#8BE9FD".toColorInt()
-
-    private val backgroundColor = androidx.core.content.ContextCompat.getColor(context, R.color.echo_night)
-    private val textColor = Color.WHITE
-
-    private val gutterBorderPaint = Paint().apply {
-        color = Color.parseColor("#333333")
-        strokeWidth = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 1f, resources.displayMetrics)
-        style = Paint.Style.STROKE
-    }
-    private val pairBackgroundPaint = Paint().apply {
-        color = "#3300E6FF".toColorInt()
-        style = Paint.Style.FILL
-    }
-    private val pairBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = "#FF00E6FF".toColorInt()
-        style = Paint.Style.STROKE
-        strokeWidth = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 1f, resources.displayMetrics)
-    }
-
-    var showLineNumbers: Boolean = true
-        set(value) { field = value; updatePaddingAndLayout(); invalidate() }
-    var wordWrapEnabled: Boolean = true
-        set(value) { field = value; applyWordWrap() }
-    var highlightCurrentLine: Boolean = true
-        set(value) { field = value; invalidate() }
-    var autoPairBraces: Boolean = true
-
+    /* Editor Configuration */
     var isReadOnly: Boolean = false
         set(value) {
             field = value
@@ -95,138 +57,85 @@ class CodeEditor @JvmOverloads constructor(
             }
             invalidate()
         }
+    var wordWrapEnabled: Boolean = true
+        set(value) { field = value; applyWordWrap() }
+    var showLineNumbers: Boolean = true
+        set(value) { field = value; updatePaddingAndLayout(); invalidate() }
+    var highlightCurrentLine: Boolean = true
+        set(value) { field = value; invalidate() }
+    var autoPairBraces: Boolean = true
 
-    private var dynamicGutterWidth: Int = 100
-    private val internalTextPadding = 20
+    /* Keywords for Language Syntax Highlighting */
+    private val htmlVoidTags = setOf("area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr")
+    private val cssKeywords = Pattern.compile("\\b(color|background|margin|padding|border|display|position|top|left|right|bottom|width|height|font|text|flex|grid|align|justify|opacity|visibility|z-index|transform|transition|animation)\\b")
+    private val jsKeywords = Pattern.compile("\\b(break|case|catch|class|const|continue|debugger|default|delete|do|else|export|extends|finally|for|function|if|import|in|instanceof|new|return|super|switch|this|throw|try|typeof|var|void|while|with|yield|let|await)\\b")
+    private val phpKeywords = Pattern.compile("\\b(abstract|and|array|as|break|case|catch|class|clone|const|continue|declare|default|die|do|echo|else|elseif|empty|enddeclare|endfor|endforeach|endif|endswitch|endwhile|eval|exit|extends|final|finally|for|foreach|function|global|if|implements|include|include_once|instanceof|insteadof|interface|isset|list|namespace|new|or|print|private|protected|public|require|require_once|return|session_destroy|session_start|session_unset|static|switch|throw|trait|try|unset|use|var|while|xor|yield|fn|match)\\b")
+    private val javaKeywords = Pattern.compile("\\b(abstract|assert|boolean|break|byte|case|catch|char|class|const|continue|default|do|double|else|enum|extends|final|finally|float|for|goto|if|implements|import|instanceof|int|interface|long|native|new|package|private|protected|public|return|short|static|strictfp|super|switch|synchronized|this|throw|throws|transient|try|void|volatile|while|var|record|yield)\\b")
+    private val kotlinKeywords = Pattern.compile("\\b(as|as\\?|break|class|continue|do|else|false|for|fun|if|in|!in|interface|is|!is|null|object|package|return|super|this|throw|true|try|typealias|typeof|val|var|when|while|by|constructor|delegate|dynamic|field|file|init|param|property|receiver|setparam|get|set|data|enum|open|abstract|internal|private|protected|public|sealed|vararg|inline|noinline|crossinline|external|out|in|reified|companion|expect|actual|suspend)\\b")
+    private val csharpKeywords = Pattern.compile("\\b(abstract|as|base|bool|break|byte|case|catch|char|checked|class|const|continue|decimal|default|delegate|do|double|else|enum|event|explicit|extern|false|finally|fixed|float|for|foreach|goto|if|implicit|in|int|interface|internal|is|lock|long|namespace|new|null|object|operator|out|override|params|private|protected|public|readonly|ref|return|sbyte|sealed|short|sizeof|stackalloc|static|string|struct|switch|this|throw|true|true|try|typeof|uint|ulong|unchecked|unsafe|ushort|using|virtual|void|volatile|while|add|alias|ascending|async|await|by|descending|dynamic|from|get|global|group|into|join|let|nameof|on|orderby|partial|remove|select|set|value|var|when|where|yield)\\b")
+    private val pythonKeywords = Pattern.compile("\\b(False|None|True|and|as|assert|async|await|break|class|continue|def|del|elif|else|except|finally|for|from|global|if|import|in|is|lambda|nonlocal|not|or|pass|raise|return|try|while|with|yield)\\b")
+    private val sqlKeywords = Pattern.compile("(?i)\\b(SELECT|FROM|WHERE|INSERT|INTO|VALUES|UPDATE|SET|DELETE|JOIN|LEFT|RIGHT|INNER|OUTER|ON|GROUP|BY|ORDER|HAVING|LIMIT|UNION|ALL|CREATE|TABLE|DROP|ALTER|INDEX|PRIMARY|KEY|FOREIGN|REFERENCES|NOT|NULL|DEFAULT|UNIQUE|CONSTRAINT|DATABASE|USE|AS|AND|OR|IN|LIKE|BETWEEN|IS|EXISTS|ANY|ALL|CASE|WHEN|THEN|ELSE|END|JOIN)\\b")
+    private val genericLiterals = Pattern.compile("\\b(true|false|null|NaN|undefined|TRUE|FALSE|NULL)\\b|\\b\\d+(\\.\\d+)?\\b")
 
-    private val totalLeftOffset: Int
-        get() = if (showLineNumbers) dynamicGutterWidth + internalTextPadding else internalTextPadding
+    /* Colors */
+    private val foregroundColor = Color.WHITE
+    private val backgroundColor = ContextCompat.getColor(context, R.color.echo_night)
+    private val placeholderColor = ContextCompat.getColor(context, R.color.placeholder_text_color)
+    private val lineNumberColor = Color.GRAY
+    private val borderColor = ContextCompat.getColor(context, R.color.border_color)
+    private val symbolPairBackgroundColor = ContextCompat.getColor(context, R.color.symbol_pair_bg)
+    private val symbolPairBorderColor = ContextCompat.getColor(context, R.color.symbol_pair_border)
+    private val currentLineHighlightColor = ContextCompat.getColor(context, R.color.current_line_highlight)
+    private val clrKeyword = ContextCompat.getColor(context, R.color.clr_keyword)
+    private val clrTag = ContextCompat.getColor(context, R.color.clr_tag)
+    private val clrAttr = ContextCompat.getColor(context, R.color.clr_attr)
+    private val clrString = ContextCompat.getColor(context, R.color.clr_string)
+    private val clrComment = ContextCompat.getColor(context, R.color.clr_comment)
+    private val clrVariable = ContextCompat.getColor(context, R.color.clr_variable)
+    private val clrLiteral = ContextCompat.getColor(context, R.color.clr_literal)
+    private val clrIdentifier = ContextCompat.getColor(context, R.color.clr_identifier)
 
+    /* Paints */
+    private val gutterBackgroundPaint = Paint().apply { color = backgroundColor; style = Paint.Style.FILL }
+    private val gutterBorderPaint = Paint().apply {
+        color = borderColor
+        strokeWidth = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 1f, resources.displayMetrics)
+        style = Paint.Style.STROKE
+    }
     private val lineNumberPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.GRAY
+        color = lineNumberColor
         textAlign = Paint.Align.RIGHT
         textSize = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 12f, resources.displayMetrics)
         isSubpixelText = true
     }
-    private val currentLinePaint = Paint().apply { color = "#308084ff".toColorInt() }
-    private val gutterBackgroundPaint = Paint().apply {
-        color = backgroundColor
-        style = Paint.Style.FILL
+    private val currentLinePaint = Paint().apply { color = currentLineHighlightColor }
+    private val pairBackgroundPaint = Paint().apply { color = symbolPairBackgroundColor; style = Paint.Style.FILL }
+    private val pairBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = symbolPairBorderColor
+        style = Paint.Style.STROKE
+        strokeWidth = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 1f, resources.displayMetrics)
     }
     private val placeholderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#555555")
+        color = placeholderColor
         textSize = this@CodeEditor.textSize
         isSubpixelText = true
     }
 
-    private var isScrolling = false
+    /* Layout */
+    private val totalLeftOffset: Int
+        get() = if (showLineNumbers) dynamicGutterWidth + internalTextPadding else internalTextPadding
+    private var dynamicGutterWidth: Int = 100
+    private val internalTextPadding = 20
+    private var matchedOpenIndex: Int = -1
+    private var matchedCloseIndex: Int = -1
+
+    /* Typography */
+    private var sansTypeface: android.graphics.Typeface? = null
+    private var monoTypeface: android.graphics.Typeface? = null
+
+    /* Gestures, Actions, and Animations */
     private var rollbackAnimator: ValueAnimator? = null
-    private var isSelfModifyingText = false
-
-    private val jsKeywords = Pattern.compile("\\b(break|case|catch|class|const|continue|debugger|default|delete|do|else|export|extends|finally|for|function|if|import|in|instanceof|new|return|super|switch|this|throw|try|typeof|var|void|while|with|yield|let|await)\\b")
-    private val phpKeywords = Pattern.compile("\\b(abstract|and|array|as|break|case|catch|class|clone|const|continue|declare|default|die|do|echo|else|elseif|empty|enddeclare|endfor|endforeach|endif|endswitch|endwhile|eval|exit|extends|final|finally|for|foreach|function|global|if|implements|include|include_once|instanceof|insteadof|interface|isset|list|namespace|new|or|print|private|protected|public|require|require_once|return|session_destroy|session_start|session_unset|static|switch|throw|trait|try|unset|use|var|while|xor|yield|fn|match)\\b")
-    private val cssKeywords = Pattern.compile("\\b(color|background|margin|padding|border|display|position|top|left|right|bottom|width|height|font|text|flex|grid|align|justify|opacity|visibility|z-index|transform|transition|animation)\\b")
-
-    private val javaKeywords = Pattern.compile("\\b(abstract|assert|boolean|break|byte|case|catch|char|class|const|continue|default|do|double|else|enum|extends|final|finally|float|for|goto|if|implements|import|instanceof|int|interface|long|native|new|package|private|protected|public|return|short|static|strictfp|super|switch|synchronized|this|throw|throws|transient|try|void|volatile|while|var|record|yield)\\b")
-    private val csharpKeywords = Pattern.compile("\\b(abstract|as|base|bool|break|byte|case|catch|char|checked|class|const|continue|decimal|default|delegate|do|double|else|enum|event|explicit|extern|false|finally|fixed|float|for|foreach|goto|if|implicit|in|int|interface|internal|is|lock|long|namespace|new|null|object|operator|out|override|params|private|protected|public|readonly|ref|return|sbyte|sealed|short|sizeof|stackalloc|static|string|struct|switch|this|throw|true|true|try|typeof|uint|ulong|unchecked|unsafe|ushort|using|virtual|void|volatile|while|add|alias|ascending|async|await|by|descending|dynamic|from|get|global|group|into|join|let|nameof|on|orderby|partial|remove|select|set|value|var|when|where|yield)\\b")
-    private val kotlinKeywords = Pattern.compile("\\b(as|as\\?|break|class|continue|do|else|false|for|fun|if|in|!in|interface|is|!is|null|object|package|return|super|this|throw|true|try|typealias|typeof|val|var|when|while|by|constructor|delegate|dynamic|field|file|init|param|property|receiver|setparam|get|set|data|enum|open|abstract|internal|private|protected|public|sealed|vararg|inline|noinline|crossinline|external|out|in|reified|companion|expect|actual|suspend)\\b")
-    private val pythonKeywords = Pattern.compile("\\b(False|None|True|and|as|assert|async|await|break|class|continue|def|del|elif|else|except|finally|for|from|global|if|import|in|is|lambda|nonlocal|not|or|pass|raise|return|try|while|with|yield)\\b")
-
-    private val sqlKeywords = Pattern.compile("(?i)\\b(SELECT|FROM|WHERE|INSERT|INTO|VALUES|UPDATE|SET|DELETE|JOIN|LEFT|RIGHT|INNER|OUTER|ON|GROUP|BY|ORDER|HAVING|LIMIT|UNION|ALL|CREATE|TABLE|DROP|ALTER|INDEX|PRIMARY|KEY|FOREIGN|REFERENCES|NOT|NULL|DEFAULT|UNIQUE|CONSTRAINT|DATABASE|USE|AS|AND|OR|IN|LIKE|BETWEEN|IS|EXISTS|ANY|ALL|CASE|WHEN|THEN|ELSE|END|JOIN)\\b")
-
-    private val genericLiterals = Pattern.compile("\\b(true|false|null|NaN|undefined|TRUE|FALSE|NULL)\\b|\\b\\d+(\\.\\d+)?\\b")
-
-    private val htmlVoidTags = setOf("area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr")
-
-    private fun calculateGutterWidth(): Int {
-        val lineCount = this.lineCount.coerceAtLeast(1)
-        val digits = lineCount.toString().length
-        val charWidth = lineNumberPaint.textSize * 0.6f
-        val padding = 40f
-
-        return (digits * charWidth + padding).toInt().coerceAtLeast(80)
-    }
-
-    private fun scanAndFindMatchingPairs() {
-        matchedOpenIndex = -1
-        matchedCloseIndex = -1
-
-        val content = text ?: return
-        val start = selectionStart
-        val end = selectionEnd
-
-        if (start != end || start < 0) return
-
-        var cursorTargetOffset = start - 1
-        var targetChar = if (cursorTargetOffset >= 0 && cursorTargetOffset < content.length) content[cursorTargetOffset] else null
-
-        if (targetChar != '{' && targetChar != '}' && targetChar != '(' && targetChar != ')' && targetChar != '[' && targetChar != ']') {
-            cursorTargetOffset = start
-            targetChar = if (cursorTargetOffset >= 0 && cursorTargetOffset < content.length) content[cursorTargetOffset] else null
-        }
-
-        if (targetChar == null) return
-
-        when (targetChar) {
-            '{', '(', '[' -> {
-                val closeChar = when (targetChar) {
-                    '{' -> '}'
-                    '(' -> ')'
-                    else -> ']'
-                }
-                var depth = 1
-                var scanIdx = cursorTargetOffset + 1
-                while (scanIdx < content.length) {
-                    if (content[scanIdx] == targetChar) depth++
-                    else if (content[scanIdx] == closeChar) depth--
-
-                    if (depth == 0) {
-                        matchedOpenIndex = cursorTargetOffset
-                        matchedCloseIndex = scanIdx
-                        break
-                    }
-                    scanIdx++
-                }
-            }
-            '}', ')', ']' -> {
-                val openChar = when (targetChar) {
-                    '}' -> '{'
-                    ')' -> '('
-                    else -> '['
-                }
-                var depth = 1
-                var scanIdx = cursorTargetOffset - 1
-                while (scanIdx >= 0) {
-                    if (content[scanIdx] == targetChar) depth++
-                    else if (content[scanIdx] == openChar) depth--
-
-                    if (depth == 0) {
-                        matchedOpenIndex = scanIdx
-                        matchedCloseIndex = cursorTargetOffset
-                        break
-                    }
-                    scanIdx--
-                }
-            }
-        }
-    }
-
-    private fun calculateMaxTextWidth(): Int {
-        val rawText = text?.toString() ?: ""
-        var maxLineWidth = 0f
-        if (rawText.isNotEmpty()) {
-            val lines = rawText.split("\n")
-            for (line in lines) {
-                val cleanLine = line.replace("\t", " ")
-                val lineWidth = paint.measureText(cleanLine)
-                if (lineWidth > maxLineWidth) {
-                    maxLineWidth = lineWidth
-                }
-            }
-        }
-        return maxLineWidth.toInt() + totalLeftOffset + paddingRight + 300
-    }
-
+    private var isScrolling = false
     private val gestureDetector =
         GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
             override fun onScroll(e1: MotionEvent?, e2: MotionEvent, distanceX: Float, distanceY: Float): Boolean {
@@ -237,7 +146,6 @@ class CodeEditor @JvmOverloads constructor(
 
                 val maxScrollX = (calculateMaxTextWidth() - width).coerceAtLeast(0)
                 val maxScrollY = (layout.height - height + paddingTop + paddingBottom).coerceAtLeast(0)
-
                 val nextX = scrollX + distanceX.toInt()
                 val nextY = scrollY + distanceY.toInt()
 
@@ -258,21 +166,7 @@ class CodeEditor @JvmOverloads constructor(
             override fun onSingleTapUp(e: MotionEvent): Boolean { return false }
         })
 
-    private var sansTypeface: android.graphics.Typeface? = null
-    private var monoTypeface: android.graphics.Typeface? = null
-
-    private fun applyTypefaceForExtension(ext: String) {
-        val isTextual = (ext == "txt" || ext == "md")
-        val selectedTypeface = if (isTextual) sansTypeface else monoTypeface
-
-        this.typeface = selectedTypeface
-
-        this.paint.typeface = android.graphics.Typeface.create(selectedTypeface, android.graphics.Typeface.NORMAL)
-        this.paint.strokeWidth = 0.5f
-
-        invalidate()
-    }
-
+    /* Overrides */
     override fun onTextContextMenuItem(id: Int): Boolean {
         val consumed = super.onTextContextMenuItem(id)
         if (id == android.R.id.paste) {
@@ -284,18 +178,163 @@ class CodeEditor @JvmOverloads constructor(
         }
         return consumed
     }
+    override fun onCreateInputConnection(outAttrs: EditorInfo): InputConnection? {
+        if (isReadOnly) return null
+        val target = super.onCreateInputConnection(outAttrs) ?: return null
 
+        return object : InputConnectionWrapper(target, true) {
+            override fun sendKeyEvent(event: KeyEvent): Boolean {
+                if (event.keyCode == KeyEvent.KEYCODE_ENTER && event.action == KeyEvent.ACTION_DOWN) {
+                    if (handleEnterKeyProcessing()) return true
+                }
+                return super.sendKeyEvent(event)
+            }
+
+            override fun commitText(text: CharSequence?, newCursorPosition: Int): Boolean {
+                if (text == "\n") {
+                    if (handleEnterKeyProcessing()) return true
+                }
+                return super.commitText(text, newCursorPosition)
+            }
+        }
+    }
+    override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_TAB) {
+            if (event.isShiftPressed) {
+                deindentSelectedText()
+            } else {
+                indentSelectedText()
+            }
+            return true
+        }
+
+        if (keyCode == KeyEvent.KEYCODE_ENTER && event.action == KeyEvent.ACTION_DOWN) {
+            if (handleEnterKeyProcessing()) return true
+        }
+        return super.onKeyDown(keyCode, event)
+    }
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        val handledByGesture = if (!wordWrapEnabled) gestureDetector.onTouchEvent(event) else false
+
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                isScrolling = false
+                rollbackAnimator?.cancel()
+                super.onTouchEvent(event)
+                return true
+            }
+            MotionEvent.ACTION_MOVE -> {
+                if (handledByGesture) {
+                    val cancelEvent = MotionEvent.obtain(event).apply { action = MotionEvent.ACTION_CANCEL }
+                    super.onTouchEvent(cancelEvent)
+                    cancelEvent.recycle()
+                    return true
+                }
+            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                isScrolling = false
+                if (handledByGesture) {
+                    checkAndTriggerRollback()
+                    return true
+                }
+                super.onTouchEvent(event)
+            }
+        }
+
+        return if (!wordWrapEnabled) {
+            handledByGesture
+        } else {
+            super.onTouchEvent(event)
+        }
+    }
+    override fun bringPointIntoView(offset: Int): Boolean {
+        if (isScrolling || (rollbackAnimator?.isRunning == true)) {
+            return false
+        }
+        return super.bringPointIntoView(offset)
+    }
+    override fun onTextChanged(text: CharSequence?, start: Int, lengthBefore: Int, lengthAfter: Int) {
+        super.onTextChanged(text, start, lengthBefore, lengthAfter)
+
+        if (lengthBefore != lengthAfter) {
+            updatePaddingAndLayout()
+        }
+    }
+    override fun onSelectionChanged(selStart: Int, selEnd: Int) {
+        if (isScrolling) return
+        super.onSelectionChanged(selStart, selEnd)
+
+        scanAndFindMatchingPairs()
+
+        if (!wordWrapEnabled && selStart == selEnd && layout != null) {
+            val currentLayout = layout ?: return
+            val cursorX = currentLayout.getPrimaryHorizontal(selStart).toInt()
+
+            val visibleLeft = scrollX + paddingLeft
+            val visibleRight = scrollX + width - paddingRight
+
+            if (cursorX < visibleLeft + 40) {
+                val targetScrollX = (cursorX - paddingLeft - 80).coerceAtLeast(0)
+                scrollTo(targetScrollX, scrollY)
+            } else if (cursorX > visibleRight - 40) {
+                val targetScrollX = cursorX - width + paddingRight + 120
+                scrollTo(targetScrollX, scrollY)
+            }
+        }
+        invalidate()
+    }
+    override fun setTypeface(tf: android.graphics.Typeface?) {
+        super.setTypeface(tf)
+        if (isInitialized) {
+            placeholderPaint?.typeface = tf
+            placeholderPaint?.textSize = this.textSize
+            text?.let {
+                applyTabReplacementSpans(it)
+                runSyntaxHighlighter(it)
+            }
+        }
+    }
+    override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
+        super.onLayout(changed, left, top, right, bottom)
+
+        val newWidth = calculateGutterWidth()
+        val newTotalOffset = if (showLineNumbers) newWidth + internalTextPadding else internalTextPadding
+
+        if (dynamicGutterWidth != newWidth || paddingLeft != newTotalOffset) {
+            dynamicGutterWidth = newWidth
+            super.setPadding(newTotalOffset, 20, 20, 20)
+        }
+    }
+    override fun onDraw(canvas: Canvas) {
+        val expectedWidth = calculateGutterWidth()
+        if (dynamicGutterWidth != expectedWidth) {
+            updatePaddingAndLayout()
+        }
+
+        val layout = layout ?: return super.onDraw(canvas)
+
+        canvas.save()
+        if (highlightCurrentLine) drawCurrentLineHighlight(canvas, layout)
+
+
+        if (matchedOpenIndex != -1 && matchedCloseIndex != -1) {
+            drawCharacterHighlightBox(canvas, layout, matchedOpenIndex)
+            drawCharacterHighlightBox(canvas, layout, matchedCloseIndex)
+        }
+
+        super.onDraw(canvas)
+        canvas.restore()
+
+        if (text.isNullOrEmpty() && !isReadOnly) drawPlaceholder(canvas)
+        if (showLineNumbers) drawLineNumbers(canvas)
+    }
+
+    /* Initialization */
     init {
         isInitialized = true
         try {
-            sansTypeface = androidx.core.content.res.ResourcesCompat.getFont(
-                context,
-                R.font.font_instrument_sans
-            )
-            monoTypeface = androidx.core.content.res.ResourcesCompat.getFont(
-                context,
-                R.font.font_suse_mono
-            )
+            sansTypeface = androidx.core.content.res.ResourcesCompat.getFont(context, R.font.font_instrument_sans)
+            monoTypeface = androidx.core.content.res.ResourcesCompat.getFont(context, R.font.font_suse_mono)
         } catch (e: Exception) {
             sansTypeface = android.graphics.Typeface.SANS_SERIF
             monoTypeface = android.graphics.Typeface.MONOSPACE
@@ -304,8 +343,7 @@ class CodeEditor @JvmOverloads constructor(
         lineNumberPaint.typeface = monoTypeface
         applyTypefaceForExtension(currentFileExtension)
 
-//        setBackgroundColor(backgroundColor)
-        setTextColor(textColor)
+        setTextColor(foregroundColor)
 
         inputType = android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE or android.text.InputType.TYPE_CLASS_TEXT
         isSingleLine = false
@@ -431,41 +469,106 @@ class CodeEditor @JvmOverloads constructor(
         })
     }
 
-    override fun onCreateInputConnection(outAttrs: EditorInfo): InputConnection? {
-        if (isReadOnly) return null
-        val target = super.onCreateInputConnection(outAttrs) ?: return null
+    /* Utilities */
+    private fun calculateGutterWidth(): Int {
+        val lineCount = this.lineCount.coerceAtLeast(1)
+        val digits = lineCount.toString().length
+        val charWidth = lineNumberPaint.textSize * 0.6f
+        val padding = 40f
 
-        return object : InputConnectionWrapper(target, true) {
-            override fun sendKeyEvent(event: KeyEvent): Boolean {
-                if (event.keyCode == KeyEvent.KEYCODE_ENTER && event.action == KeyEvent.ACTION_DOWN) {
-                    if (handleEnterKeyProcessing()) return true
+        return (digits * charWidth + padding).toInt().coerceAtLeast(80)
+    }
+
+    private fun scanAndFindMatchingPairs() {
+        matchedOpenIndex = -1
+        matchedCloseIndex = -1
+
+        val content = text ?: return
+        val start = selectionStart
+        val end = selectionEnd
+
+        if (start != end || start < 0) return
+
+        var cursorTargetOffset = start - 1
+        var targetChar = if (cursorTargetOffset >= 0 && cursorTargetOffset < content.length) content[cursorTargetOffset] else null
+
+        if (targetChar != '{' && targetChar != '}' && targetChar != '(' && targetChar != ')' && targetChar != '[' && targetChar != ']') {
+            cursorTargetOffset = start
+            targetChar = if (cursorTargetOffset >= 0 && cursorTargetOffset < content.length) content[cursorTargetOffset] else null
+        }
+
+        if (targetChar == null) return
+
+        when (targetChar) {
+            '{', '(', '[' -> {
+                val closeChar = when (targetChar) {
+                    '{' -> '}'
+                    '(' -> ')'
+                    else -> ']'
                 }
-                return super.sendKeyEvent(event)
+                var depth = 1
+                var scanIdx = cursorTargetOffset + 1
+                while (scanIdx < content.length) {
+                    if (content[scanIdx] == targetChar) depth++
+                    else if (content[scanIdx] == closeChar) depth--
+
+                    if (depth == 0) {
+                        matchedOpenIndex = cursorTargetOffset
+                        matchedCloseIndex = scanIdx
+                        break
+                    }
+                    scanIdx++
+                }
             }
-
-            override fun commitText(text: CharSequence?, newCursorPosition: Int): Boolean {
-                if (text == "\n") {
-                    if (handleEnterKeyProcessing()) return true
+            '}', ')', ']' -> {
+                val openChar = when (targetChar) {
+                    '}' -> '{'
+                    ')' -> '('
+                    else -> '['
                 }
-                return super.commitText(text, newCursorPosition)
+                var depth = 1
+                var scanIdx = cursorTargetOffset - 1
+                while (scanIdx >= 0) {
+                    if (content[scanIdx] == targetChar) depth++
+                    else if (content[scanIdx] == openChar) depth--
+
+                    if (depth == 0) {
+                        matchedOpenIndex = scanIdx
+                        matchedCloseIndex = cursorTargetOffset
+                        break
+                    }
+                    scanIdx--
+                }
             }
         }
     }
 
-    override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
-        if (keyCode == KeyEvent.KEYCODE_TAB) {
-            if (event.isShiftPressed) {
-                deindentSelectedText()
-            } else {
-                indentSelectedText()
+    private fun calculateMaxTextWidth(): Int {
+        val rawText = text?.toString() ?: ""
+        var maxLineWidth = 0f
+        if (rawText.isNotEmpty()) {
+            val lines = rawText.split("\n")
+            for (line in lines) {
+                val cleanLine = line.replace("\t", " ")
+                val lineWidth = paint.measureText(cleanLine)
+                if (lineWidth > maxLineWidth) {
+                    maxLineWidth = lineWidth
+                }
             }
-            return true
         }
+        return maxLineWidth.toInt() + totalLeftOffset + paddingRight + 300
+    }
 
-        if (keyCode == KeyEvent.KEYCODE_ENTER && event.action == KeyEvent.ACTION_DOWN) {
-            if (handleEnterKeyProcessing()) return true
-        }
-        return super.onKeyDown(keyCode, event)
+    private fun applyTypefaceForExtension(ext: String) {
+        val isTextual = (ext == "txt" || ext == "md")
+        val selectedTypeface = if (isTextual) sansTypeface else monoTypeface
+
+        this.typeface = selectedTypeface
+
+        this.paint.typeface = android.graphics.Typeface.create(selectedTypeface, android.graphics.Typeface.NORMAL)
+        this.paint.strokeWidth = 0.5f
+
+        invalidate()
     }
 
     private fun handleEnterKeyProcessing(): Boolean {
@@ -977,81 +1080,6 @@ class CodeEditor @JvmOverloads constructor(
         return null
     }
 
-    override fun onTouchEvent(event: MotionEvent): Boolean {
-        val handledByGesture = if (!wordWrapEnabled) gestureDetector.onTouchEvent(event) else false
-
-        when (event.actionMasked) {
-            MotionEvent.ACTION_DOWN -> {
-                isScrolling = false
-                rollbackAnimator?.cancel()
-                super.onTouchEvent(event)
-                return true
-            }
-            MotionEvent.ACTION_MOVE -> {
-                if (handledByGesture) {
-                    val cancelEvent = MotionEvent.obtain(event).apply { action = MotionEvent.ACTION_CANCEL }
-                    super.onTouchEvent(cancelEvent)
-                    cancelEvent.recycle()
-                    return true
-                }
-            }
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                isScrolling = false
-                if (handledByGesture) {
-                    checkAndTriggerRollback()
-                    return true
-                }
-                super.onTouchEvent(event)
-            }
-        }
-
-        return if (!wordWrapEnabled) {
-            handledByGesture
-        } else {
-            super.onTouchEvent(event)
-        }
-    }
-
-    override fun bringPointIntoView(offset: Int): Boolean {
-        if (isScrolling || (rollbackAnimator?.isRunning == true)) {
-            return false
-        }
-        return super.bringPointIntoView(offset)
-    }
-
-
-    override fun onTextChanged(text: CharSequence?, start: Int, lengthBefore: Int, lengthAfter: Int) {
-        super.onTextChanged(text, start, lengthBefore, lengthAfter)
-
-        if (lengthBefore != lengthAfter) {
-            updatePaddingAndLayout()
-        }
-    }
-
-    override fun onSelectionChanged(selStart: Int, selEnd: Int) {
-        if (isScrolling) return
-        super.onSelectionChanged(selStart, selEnd)
-
-        scanAndFindMatchingPairs()
-
-        if (!wordWrapEnabled && selStart == selEnd && layout != null) {
-            val currentLayout = layout ?: return
-            val cursorX = currentLayout.getPrimaryHorizontal(selStart).toInt()
-
-            val visibleLeft = scrollX + paddingLeft
-            val visibleRight = scrollX + width - paddingRight
-
-            if (cursorX < visibleLeft + 40) {
-                val targetScrollX = (cursorX - paddingLeft - 80).coerceAtLeast(0)
-                scrollTo(targetScrollX, scrollY)
-            } else if (cursorX > visibleRight - 40) {
-                val targetScrollX = cursorX - width + paddingRight + 120
-                scrollTo(targetScrollX, scrollY)
-            }
-        }
-        invalidate()
-    }
-
     private fun checkAndTriggerRollback() {
         if (wordWrapEnabled) return
         val maxScrollX = (calculateMaxTextWidth() - width).coerceAtLeast(0)
@@ -1069,54 +1097,6 @@ class CodeEditor @JvmOverloads constructor(
                 start()
             }
         }
-    }
-
-    override fun setTypeface(tf: android.graphics.Typeface?) {
-        super.setTypeface(tf)
-        if (isInitialized) {
-            placeholderPaint?.typeface = tf
-            placeholderPaint?.textSize = this.textSize
-            text?.let {
-                applyTabReplacementSpans(it)
-                runSyntaxHighlighter(it)
-            }
-        }
-    }
-
-    override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
-        super.onLayout(changed, left, top, right, bottom)
-
-        val newWidth = calculateGutterWidth()
-        val newTotalOffset = if (showLineNumbers) newWidth + internalTextPadding else internalTextPadding
-
-        if (dynamicGutterWidth != newWidth || paddingLeft != newTotalOffset) {
-            dynamicGutterWidth = newWidth
-            super.setPadding(newTotalOffset, 20, 20, 20)
-        }
-    }
-
-    override fun onDraw(canvas: Canvas) {
-        val expectedWidth = calculateGutterWidth()
-        if (dynamicGutterWidth != expectedWidth) {
-            updatePaddingAndLayout()
-        }
-
-        val layout = layout ?: return super.onDraw(canvas)
-
-        canvas.save()
-        if (highlightCurrentLine) drawCurrentLineHighlight(canvas, layout)
-
-
-        if (matchedOpenIndex != -1 && matchedCloseIndex != -1) {
-            drawCharacterHighlightBox(canvas, layout, matchedOpenIndex)
-            drawCharacterHighlightBox(canvas, layout, matchedCloseIndex)
-        }
-
-        super.onDraw(canvas)
-        canvas.restore()
-
-        if (text.isNullOrEmpty() && !isReadOnly) drawPlaceholder(canvas)
-        if (showLineNumbers) drawLineNumbers(canvas)
     }
 
     private fun drawCharacterHighlightBox(canvas: Canvas, layout: Layout, offset: Int) {
@@ -1176,6 +1156,28 @@ class CodeEditor @JvmOverloads constructor(
             textContent.insert(start, "$openSymbol$closeSymbol")
             setSelection(start + openSymbol.length)
         }
+    }
+
+    fun insertSemicolon() {
+        if (isReadOnly) return
+
+        val content = text ?: return
+        val start = selectionStart
+        val end = selectionEnd
+        if (start < 0) return
+
+        isSelfModifyingText = true
+
+        val insertPos = if (start != end) end else start
+
+        if (insertPos < content.length && content[insertPos] == ';') {
+            setSelection(insertPos + 1)
+        } else {
+            content.insert(insertPos, ";")
+            setSelection(insertPos + 1)
+        }
+
+        isSelfModifyingText = false
     }
 
     fun applyConfig(config: EditorConfig) {
@@ -1305,7 +1307,6 @@ class CodeEditor @JvmOverloads constructor(
 
         setSelection(newSelectionStart.coerceIn(0, content.length), newSelectionEnd.coerceIn(0, content.length))
     }
-
 
     private fun drawCurrentLineHighlight(canvas: Canvas, layout: Layout) {
         val range = getCurrentLogicalLineRange() ?: return

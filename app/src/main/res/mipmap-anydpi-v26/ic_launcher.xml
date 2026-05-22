@@ -4,6 +4,7 @@
     <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
     <monochrome android:drawable="@mipmap/ic_launcher_foreground"/>
 </adaptive-icon>
+
 <!--
   ~ Copyright (C) 2026 The Android Open Source Project
   ~

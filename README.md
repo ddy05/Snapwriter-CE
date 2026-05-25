@@ -1,5 +1,13 @@
 <img width="3780" height="1890" alt="SNAPWRITER CE BANNER" src="https://github.com/user-attachments/assets/e3dca6bf-1455-4170-9e0d-43686dddcdbe" />
 
+<p align="center">
+  <img src="https://img.shields.io/badge/status-alpha-orange?style=flat-square" alt="Status">
+  <img src="https://img.shields.io/badge/maintained%3F-yes-green?style=flat-square" alt="Maintained">
+  <img src="https://img.shields.io/badge/license-Apache--2.0-blue?style=flat-square" alt="License">
+  <img src="https://img.shields.io/badge/language-Kotlin-purple?style=flat-square&logo=kotlin" alt="Language">
+  <img src="https://img.shields.io/badge/framework-Android-green?style=flat-square&logo=android" alt="Framework">
+</p>
+
 # About the Project
 **Snapwriter CE** is a code and text editor for Android that emphasizes developer velocity, intelligent features, and consistent reliability, aiming to make mobile editing *less painful* and *more enjoyable* with a clear, modern interface that cuts down on the hassle and simply lets focus *snap* into place. It hosts features such as: 
 - **Boilerplate code auto-completion** - e.g. for HTML

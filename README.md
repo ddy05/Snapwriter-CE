@@ -31,12 +31,19 @@ Wait for the cloning to finish. If you see this dialog pop up, you may safely cl
 
 <img width="486" height="268" alt="image" src="https://github.com/user-attachments/assets/a1da3587-2236-4b70-beb0-4a6d137abaac" />
 
+# Security and Transparency Statement
 Snapwriter CE is developed with the intent to be safe, transparent, and free from malicious behavior.
 
 To the best of the sole developer's knowledge, this repository does **not** contain malicious code, intentional backdoors, or hidden data exfiltration mechanisms. Snapwriter CE follows an offline-first architecture and does not require an internet connection to access its core functionality.
 
 All dependencies are publicly listed via the source code and can be audited. Independent review and feedback is welcome via the [Issue Tracker](https://github.com/ddy05/Snapwriter-CE/issues).
 
+# Development Approach
+Snapwriter CE is written in Kotlin for modern, standards-aligned Android application development.
+
+Snapwriter CE is an original idea. However, the developer openly acknowledges the usage of AI-assisted development to support rapid prototyping and implementation of complex features in some parts, such as the code-text editor.
+
+All code — whether human-written or AI-generated — is reviewed, tested, and maintained by the developer, who maintains full responsibility over the software's final implementation and behavior.
 
 # Supported Languages
 Snapwriter CE can theoretically edit any file with any extension. Regardless, it currently supports rudimentary syntax highlighting for the following languages:
